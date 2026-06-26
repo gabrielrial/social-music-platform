@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from app.database.conf.sqla_conf import engine, Base
-from app.api.api_users import router
+from app.database.conf.alch_conf import engine, Base
+from app.api.routes.user import router
 
 # Crear las tablas en la base de datos
 Base.metadata.create_all(bind=engine)

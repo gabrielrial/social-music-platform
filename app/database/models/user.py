@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy import func
-from app.database.conf.sqla_conf import Base
+from app.database.conf.alch_conf import Base
 
 # Models represent database tables. Each model defines the structure of a 
 # specific table, including its columns, data types, relationships, 

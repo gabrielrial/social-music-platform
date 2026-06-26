@@ -1,5 +1,9 @@
 from passlib.context import CryptContext
 
+ALGORITHM = "HS256"
+ACCESS_TOKEN_DURATION = 1
+SECRET = "70ddbfecf49a1d435674562e4775b9f873962d0e28511203a65a202df88d89c5"
+
 crypt = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"

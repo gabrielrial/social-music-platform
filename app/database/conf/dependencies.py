@@ -1,5 +1,4 @@
-from sqlalchemy.orm import Session
-from app.database.conf.sqla_conf import SessionLocal
+from app.database.conf.alch_conf import SessionLocal
 
 
 def get_db():
