@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from app.database.conf.alch_conf import engine, Base
-from app.api.routes.user import router
+from app.api.routes.user import router as user_router
+from app.api.routes.post import router as post_router
+
 
 # Crear las tablas en la base de datos
 Base.metadata.create_all(bind=engine)
@@ -9,7 +11,8 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Rate API", version="1.0.0")
 
 # Incluir routers
-app.include_router(router)
+app.include_router(user_router)
+app.include_router(post_router)
 
 
 @app.get("/")
