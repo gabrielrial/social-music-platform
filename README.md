@@ -68,21 +68,22 @@ http://localhost:8000
 
 ## 📡 API Endpoints (Example)
 
-### Auth
+### Users
 
-* `POST /register` – Create a new user
-* `POST /login` – Authenticate user and return JWT
+* `POST /users/signup` → Register new user
+* `POST /users/login` → Authenticate and receive JWT
+* `GET /users/me` → Get current authenticated user
+* `GET /users/{id}` → Get user by ID
+* `GET /users/` → List all users (protected)
 
 ### Posts
 
-* `GET /posts` – Get all posts
-* `POST /posts` – Create a post
-* `DELETE /posts/{id}` – Delete a post
-
-### Comments
-
-* `POST /comments` – Add comment to post
-* `GET /posts/{id}/comments` – Get comments for a post
+* `GET /posts/` → Get all posts (ordered by creation date)
+* `GET /posts/{id}` → Get post by ID
+* `POST /posts/` → Create post (authenticated users only)
+* `PATCH /posts/{id}` → Update post
+* `DELETE /posts/{id}` → Delete post
+* `GET /posts/user/{user_id}` → Get posts by user
 
 ---
 
@@ -111,9 +112,6 @@ This project was built to strengthen backend engineering skills, focusing on:
 
 ## 👤 Author
 
-**Gabriel Rial Picco**
-
-* GitHub: [your-link]
-* LinkedIn: [your-link]
+**gabrielrial**
 
 ---
