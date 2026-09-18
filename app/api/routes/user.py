@@ -22,6 +22,11 @@ SECRET = "70ddbfecf49a1d435674562e4775b9f873962d0e28511203a65a202df88d89c5"
 def get_users(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    if not current_user:
+        raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
+        )
+
     return db.query(User).all()
 
 
