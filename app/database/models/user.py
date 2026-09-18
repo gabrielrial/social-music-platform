@@ -24,3 +24,4 @@ class User(Base):
     )
 
     posts = relationship("Post", back_populates="author")
+    comments = relationship("Comment", back_populates="author")

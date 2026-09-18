@@ -17,5 +17,5 @@ class Comment(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    post_id = Column(Integer, ForeignKey("post.id"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
 
