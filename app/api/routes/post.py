@@ -15,6 +15,22 @@ def get_posts(db: Session = Depends(get_db)):
     return posts
 
 
+
+
+@router.get("/me", response_model=list[PostResponse])
+def get_user_posts(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    print("POSTS/ME")
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
+        )
+
+    post = db.query(Post).filter(Post.author_id == current_user.id).all()
+
+    return post
+
 @router.get("/{post_id}", response_model=PostResponse)
 def get_id(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
@@ -24,18 +40,17 @@ def get_id(post_id: int, db: Session = Depends(get_db)):
 
     return post
 
-
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(
     post_data: PostCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     new_post = Post(
         title=post_data.title,
         content=post_data.content,
         author_id=current_user.id,
-        post_type=post_data.post_type
+        post_type=post_data.post_type,
     )
 
     db.add(new_post)
@@ -71,8 +86,3 @@ def delete_post(post_id: int, db: Session = Depends(get_db)):
     db.delete(post)
     db.commit()
 
-
-@router.get("/user/{user_id}", response_model=list[PostResponse])
-def get_user_posts(user_id: int, db: Session = Depends(get_db)):
-    posts = db.query(Post).filter(Post.author_id == user_id).all()
-    return posts
