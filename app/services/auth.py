@@ -4,9 +4,9 @@ from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from app.database.conf.dependencies import get_db
-from app.utils.security import SECRET, ALGORITHM, ACCESS_TOKEN_DURATION
-from app.services.users import get_user_by_username
+from database.conf.dependencies import get_db
+from utils.security import SECRET, ALGORITHM, ACCESS_TOKEN_DURATION
+from services.users import get_user_by_username
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")

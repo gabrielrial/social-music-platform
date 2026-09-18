@@ -1,117 +1,165 @@
-# 🎵 Social Music Backend API
+# 🎵 Rate API — Social Music Backend
 
-A backend system for a social music platform that allows users to register, authenticate, create posts, and interact through comments. The project focuses on building a secure, scalable REST API using modern backend development practices.
-
----
-
-## 🚀 Features
-
-* User registration and authentication system
-* Secure login using JWT-based authentication
-* Password hashing for secure credential storage
-* Create, read, update, and delete (CRUD) operations for posts
-* Comment system for user interaction on posts
-* Role-based authorization and protected routes
-* Relational database design for users, posts, and comments
-* Dockerized environment for easy setup and deployment
+Backend de una plataforma social de música: los usuarios se registran, se autentican y publican posts sobre los que se pueden comentar. Construido con **FastAPI** y **PostgreSQL**.
 
 ---
 
-## 🧱 Tech Stack
+## 🧱 Stack
 
-* **Backend:** Python, FastAPI
-* **Database:** PostgreSQL
-* **ORM:** SQLAlchemy
-* **Authentication:** JWT (JSON Web Tokens)
-* **Security:** Password hashing (bcrypt / passlib)
-* **DevOps:** Docker, Docker Compose
-* **Validation:** Pydantic
-
----
-
-## 🏗️ Architecture Overview
-
-The project follows a modular backend architecture:
-
-* **API Layer:** FastAPI routes handling HTTP requests
-* **Service Layer:** Business logic separation
-* **Data Layer:** SQLAlchemy models and database interaction
-* **Security Layer:** Authentication, JWT handling, password hashing
-
-This separation ensures maintainability, scalability, and clean code organization.
+- **Framework:** FastAPI
+- **Base de datos:** PostgreSQL 17
+- **ORM:** SQLAlchemy
+- **Autenticación:** JWT (`python-jose`)
+- **Hash de contraseñas:** Passlib + bcrypt
+- **Contenedores:** Docker / Docker Compose (solo para la base de datos, ver más abajo)
 
 ---
 
-## 🔐 Authentication Flow
+## 📁 Estructura del proyecto
 
-1. User registers with email and password
-2. Password is hashed before storing in database
-3. User logs in and receives a JWT token
-4. Token is used to access protected endpoints
-5. Token expiration ensures session security
+```
+app/
+├── main.py                  # Punto de entrada de la API (FastAPI app)
+├── api/routes/               # Endpoints (users, posts, comments)
+├── services/                 # Lógica de negocio (auth, users)
+├── utils/security.py         # Hash de contraseñas y config JWT
+└── database/
+    ├── conf/                 # Conexión a la BD (SQLAlchemy) y dependencias
+    ├── models/                # Modelos ORM (user, post, comment, genre)
+    └── schema/                # Esquemas Pydantic (request/response)
 
----
+docker/
+├── docker-compose.yml        # Levanta el contenedor de PostgreSQL
+├── fast_api/Dockerfile       # (vacío por ahora, no se usa)
+└── postgre_sql/Dockerfile    # (vacío por ahora, no se usa)
 
-## 🐳 Running the Project with Docker
-
-```bash
-docker-compose up --build
+requirements.txt              # Dependencias Python
 ```
 
-The API will be available at:
+> Nota: existe también una carpeta `rate/` en la raíz con un `pyproject.toml` suelto (gestionado con `uv`). No forma parte de la app activa (`app/`) — parece un experimento aparte y puede ignorarse o eliminarse.
+
+---
+
+## ⚙️ Requisitos previos
+
+- Python 3.10+ (recomendado)
+- Docker y Docker Compose (para la base de datos)
+- `pip`
+
+---
+
+## 🚀 Cómo levantar el proyecto
+
+### 1. Clonar e instalar dependencias
+
+```bash
+git clone <url-del-repo>
+cd Rate
+python -m venv .venv
+source .venv/bin/activate          # En Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+pip install python-jose             # necesario para JWT, falta en requirements.txt
+```
+
+### 2. Levantar la base de datos (PostgreSQL) con Docker
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+Esto crea un contenedor Postgres con:
+
+| Variable         | Valor      |
+|------------------|------------|
+| Usuario          | `admin`    |
+| Contraseña       | `password` |
+| Base de datos    | `forumdb`  |
+| Puerto           | `5432`     |
+
+> ⚠️ El `docker-compose.yml` solo levanta la **base de datos**. La API (FastAPI) no corre en Docker todavía — los `Dockerfile` de `fast_api/` y `postgre_sql/` están vacíos —, así que se ejecuta aparte con Uvicorn (paso siguiente).
+
+### 3. Levantar la API
+
+Desde la raíz del proyecto, con la base de datos ya corriendo:
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+La API quedará disponible en:
 
 ```
 http://localhost:8000
 ```
 
----
+Docs interactivas (Swagger) en:
 
-## 📡 API Endpoints (Example)
+```
+http://localhost:8000/docs
+```
 
-### Users
+Las tablas se crean automáticamente al arrancar (`Base.metadata.create_all`), no hace falta correr migraciones aparte.
 
-* `POST /users/signup` → Register new user
-* `POST /users/login` → Authenticate and receive JWT
-* `GET /users/me` → Get current authenticated user
-* `GET /users/{id}` → Get user by ID
-* `GET /users/` → List all users (protected)
+### ⚠️ Configuración de la base de datos
 
-### Posts
+La cadena de conexión está **hardcodeada** en `app/database/conf/alch_conf.py`:
 
-* `GET /posts/` → Get all posts (ordered by creation date)
-* `GET /posts/{id}` → Get post by ID
-* `POST /posts/` → Create post (authenticated users only)
-* `PATCH /posts/{id}` → Update post
-* `DELETE /posts/{id}` → Delete post
-* `GET /posts/user/{user_id}` → Get posts by user
+```python
+DATABASE_URL = "postgresql://admin:password@localhost:5432/forumdb"
+```
+
+Si cambias usuario, contraseña, host o nombre de la base en `docker-compose.yml`, tenés que actualizar también esta línea (todavía no usa variables de entorno / `.env`).
 
 ---
 
-## 🧪 Future Improvements
+## 📡 Endpoints disponibles
 
-* Pagination for posts and comments
-* User profiles
-* Like system for posts
-* Rate limiting
-* Unit and integration tests
-* CI/CD pipeline
+### Usuarios (`/users`)
+
+| Método | Ruta             | Descripción                              | Auth |
+|--------|------------------|-------------------------------------------|------|
+| POST   | `/users/signup`  | Registrar nuevo usuario                   | No   |
+| POST   | `/users/login`   | Login, devuelve JWT                       | No   |
+| GET    | `/users/me`      | Usuario autenticado actual                | Sí   |
+| GET    | `/users/{id}`    | Obtener usuario por ID                    | No   |
+| GET    | `/users/`        | Listar todos los usuarios                 | Sí   |
+
+### Posts (`/posts`)
+
+| Método | Ruta                     | Descripción                          | Auth |
+|--------|--------------------------|----------------------------------------|------|
+| GET    | `/posts/`                | Listar posts (más recientes primero)   | No   |
+| GET    | `/posts/{id}`             | Obtener post por ID                    | No   |
+| POST   | `/posts/`                 | Crear post                             | Sí   |
+| PATCH  | `/posts/{id}`             | Actualizar post                        | No*  |
+| DELETE | `/posts/{id}`             | Eliminar post                          | No*  |
+| GET    | `/posts/user/{user_id}`   | Posts de un usuario                    | No   |
+
+\* `PATCH` y `DELETE` de posts todavía no exigen autenticación ni validan que el usuario sea el autor — pendiente de reforzar.
+
+### Comentarios (`/comment`)
+
+El router de comentarios (`app/api/routes/comment.py`) existe pero **todavía no está registrado en `main.py`** y tiene errores pendientes (usa una variable `post_id` no definida, y un endpoint `POST` sin función implementada). No está operativo por ahora.
 
 ---
 
-## 📌 Project Goal
+## 🔐 Autenticación
 
-This project was built to strengthen backend engineering skills, focusing on:
+1. El usuario se registra en `POST /users/signup` (contraseña hasheada con bcrypt).
+2. Hace login en `POST /users/login` (formato `OAuth2PasswordRequestForm`: `username` + `password`) y recibe un JWT.
+3. Ese token se envía como `Authorization: Bearer <token>` en los endpoints protegidos.
+4. El token expira a los **2 minutos** (`ACCESS_TOKEN_DURATION = 2` en `app/utils/security.py`) — útil tenerlo en cuenta al probar la API, puede convenir subir este valor en desarrollo.
 
-* REST API design
-* Authentication systems
-* Database modeling
-* Docker-based development environments
-* Clean backend architecture principles
-
----
-
-## 👤 Author
-
-**gabrielrial**
+> La clave secreta (`SECRET`) está hardcodeada en el código fuente (`security.py` y `user.py`). Antes de llevar esto a producción conviene moverla a una variable de entorno.
 
 ---
+
+## 🧪 Próximos pasos sugeridos
+
+- Mover `DATABASE_URL` y `SECRET` a variables de entorno (`.env`).
+- Completar y registrar el router de comentarios.
+- Añadir Dockerfile real para la API y sumarla al `docker-compose.yml`.
+- Proteger `PATCH`/`DELETE` de posts con autenticación y verificación de autor.
+- Añadir dependencia `python-jose` a `requirements.txt`.
+- Tests (existe carpeta `.tests/` y `.pytest_cache/`, revisar cobertura actual).

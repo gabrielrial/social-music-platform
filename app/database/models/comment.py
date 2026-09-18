@@ -1,9 +1,9 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from app.database.conf.alch_conf import Base
+from database.conf.alch_conf import Base
 from sqlalchemy import func
 
-
+'''
 class Comment(Base):
     __tablename__ = "comments"
 
@@ -19,4 +19,5 @@ class Comment(Base):
 
     post_id = Column(Integer, ForeignKey("post.id"), nullable=False)
     #post = relationship("Post", back_populates="comments")
+'''
 
