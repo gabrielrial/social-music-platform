@@ -15,8 +15,6 @@ def get_posts(db: Session = Depends(get_db)):
     return posts
 
 
-
-
 @router.get("/me", response_model=list[PostResponse])
 def get_user_posts(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -31,6 +29,7 @@ def get_user_posts(
 
     return post
 
+
 @router.get("/{post_id}", response_model=PostResponse)
 def get_id(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
@@ -39,6 +38,7 @@ def get_id(post_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Post not found")
 
     return post
+
 
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(
@@ -61,11 +61,25 @@ def create_post(
 
 
 @router.patch("/{post_id}", response_model=PostResponse)
-def update_post(post_id: int, data: PostCreate, db: Session = Depends(get_db)):
+def update_post(
+    post_id: int,
+    data: PostCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+
     post = db.query(Post).filter(Post.id == post_id).first()
 
     if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    if user.id != post.author_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this post",
+        )
 
     post.title = data.title
     post.content = data.content
@@ -77,12 +91,21 @@ def update_post(post_id: int, data: PostCreate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{post_id}", status_code=204)
-def delete_post(post_id: int, db: Session = Depends(get_db)):
+def delete_post(
+    post_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     post = db.query(Post).filter(Post.id == post_id).first()
 
     if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    if user.id != post.author_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to modify this post",
+        )
 
     db.delete(post)
     db.commit()
-
