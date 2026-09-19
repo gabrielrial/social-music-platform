@@ -66,7 +66,6 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    print("login")
 
     user = db.query(User).filter(User.username == form.username).first()
 
