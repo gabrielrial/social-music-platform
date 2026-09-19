@@ -1,4 +1,4 @@
-from database.models.user import User
+from app.database.models.user import User
 from sqlalchemy.orm import Session
 
 def get_user_by_email(db: Session, email: str):
