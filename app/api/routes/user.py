@@ -11,11 +11,6 @@ from services.auth import get_current_user, create_access_token
 from services.users import get_user_by_email, get_user_by_username
 
 router = APIRouter(prefix="/users", tags=["users"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
-
-ALGORITHM = "HS256"
-ACCESS_TOKEN_DURATION = 2
-SECRET = "70ddbfecf49a1d435674562e4775b9f873962d0e28511203a65a202df88d89c5"
 
 
 @router.get("/", response_model=list[UserResponse])
@@ -24,13 +19,13 @@ def get_users(
 ):
     if not current_user:
         raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
         )
 
     return db.query(User).all()
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
 
@@ -47,7 +42,6 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 @router.post("/signup", response_model=UserResponse)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
-    print("signup")
 
     existing_email = get_user_by_email(db, user.email)
     if existing_email:
@@ -71,9 +65,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(
-    form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
-):
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     print("login")
 
     user = db.query(User).filter(User.username == form.username).first()
