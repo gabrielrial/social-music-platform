@@ -1,165 +1,203 @@
 # 🎵 Rate API — Social Music Backend
 
-Backend de una plataforma social de música: los usuarios se registran, se autentican y publican posts sobre los que se pueden comentar. Construido con **FastAPI** y **PostgreSQL**.
+Backend for a social music platform: users sign up, authenticate, and publish posts about albums and songs that other users can comment on. Built with **FastAPI** and **PostgreSQL**.
 
 ---
 
 ## 🧱 Stack
 
 - **Framework:** FastAPI
-- **Base de datos:** PostgreSQL 17
-- **ORM:** SQLAlchemy
-- **Autenticación:** JWT (`python-jose`)
-- **Hash de contraseñas:** Passlib + bcrypt
-- **Contenedores:** Docker / Docker Compose (solo para la base de datos, ver más abajo)
+- **Database:** PostgreSQL 17
+- **ORM:** SQLAlchemy 2.0
+- **Authentication:** JWT (`python-jose`)
+- **Password hashing:** Passlib + bcrypt
+- **Tests:** pytest + FastAPI `TestClient`
+- **Containers:** Docker Compose (development and test databases)
 
 ---
 
-## 📁 Estructura del proyecto
+## 📁 Project structure
 
 ```
 app/
-├── main.py                  # Punto de entrada de la API (FastAPI app)
+├── main.py                   # Entry point (FastAPI app + lifespan)
 ├── api/routes/               # Endpoints (users, posts, comments)
-├── services/                 # Lógica de negocio (auth, users)
-├── utils/security.py         # Hash de contraseñas y config JWT
+├── services/                 # Business logic (auth, users)
+├── utils/security.py         # Password hashing and JWT config
 └── database/
-    ├── conf/                 # Conexión a la BD (SQLAlchemy) y dependencias
-    ├── models/                # Modelos ORM (user, post, comment, genre)
-    └── schema/                # Esquemas Pydantic (request/response)
+    ├── conf/                 # SQLAlchemy connection and get_db dependency
+    ├── models/               # ORM models (user, post, comment)
+    └── schema/               # Pydantic schemas (request/response)
+
+test/                         # Test suite (see test/README.md)
+├── conftest.py               # Shared fixtures
+├── conf/                     # Test database config and seed data
+└── tests/                    # The tests
 
 docker/
-├── docker-compose.yml        # Levanta el contenedor de PostgreSQL
-├── fast_api/Dockerfile       # (vacío por ahora, no se usa)
-└── postgre_sql/Dockerfile    # (vacío por ahora, no se usa)
+└── docker-compose.yml        # Development (5432) and test (5433) Postgres
 
-requirements.txt              # Dependencias Python
+requirements.txt              # Python dependencies (app + tests)
 ```
-
-> Nota: existe también una carpeta `rate/` en la raíz con un `pyproject.toml` suelto (gestionado con `uv`). No forma parte de la app activa (`app/`) — parece un experimento aparte y puede ignorarse o eliminarse.
 
 ---
 
-## ⚙️ Requisitos previos
+## ⚙️ Prerequisites
 
-- Python 3.10+ (recomendado)
-- Docker y Docker Compose (para la base de datos)
+- Python 3.10+
+- Docker and Docker Compose
 - `pip`
 
 ---
 
-## 🚀 Cómo levantar el proyecto
+## 🚀 Getting started
 
-### 1. Clonar e instalar dependencias
+### 1. Install dependencies
 
 ```bash
-git clone <url-del-repo>
+git clone <repo-url>
 cd Rate
 python -m venv .venv
-source .venv/bin/activate          # En Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pip install python-jose             # necesario para JWT, falta en requirements.txt
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt    # includes pytest and httpx for the tests
 ```
 
-### 2. Levantar la base de datos (PostgreSQL) con Docker
+### 2. Start the databases
 
 ```bash
 cd docker
-docker-compose up -d
+docker compose up -d
 ```
 
-Esto crea un contenedor Postgres con:
+This starts two containers:
 
-| Variable         | Valor      |
-|------------------|------------|
-| Usuario          | `admin`    |
-| Contraseña       | `password` |
-| Base de datos    | `forumdb`  |
-| Puerto           | `5432`     |
+| Service   | Database       | Local port | Data                               |
+|-----------|----------------|------------|------------------------------------|
+| `db`      | `forumdb`      | `5432`     | Persistent (Docker volume)         |
+| `db_test` | `forumdb_test` | `5433`     | In RAM, wiped when the container stops |
 
-> ⚠️ El `docker-compose.yml` solo levanta la **base de datos**. La API (FastAPI) no corre en Docker todavía — los `Dockerfile` de `fast_api/` y `postgre_sql/` están vacíos —, así que se ejecuta aparte con Uvicorn (paso siguiente).
+Both use user `admin` and password `password`.
 
-### 3. Levantar la API
+> The left-hand port is the one on your machine; inside each container Postgres always listens on 5432.
 
-Desde la raíz del proyecto, con la base de datos ya corriendo:
+### 3. Run the API
+
+From the project root:
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload
 ```
 
-La API quedará disponible en:
+- API: http://localhost:8000
+- Swagger: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-```
-http://localhost:8000
-```
+Tables are created when the server starts (`create_all` inside FastAPI's `lifespan`), so there are no migrations to run.
 
-Docs interactivas (Swagger) en:
-
-```
-http://localhost:8000/docs
-```
-
-Las tablas se crean automáticamente al arrancar (`Base.metadata.create_all`), no hace falta correr migraciones aparte.
-
-### ⚠️ Configuración de la base de datos
-
-La cadena de conexión está **hardcodeada** en `app/database/conf/alch_conf.py`:
-
-```python
-DATABASE_URL = "postgresql://admin:password@localhost:5432/forumdb"
-```
-
-Si cambias usuario, contraseña, host o nombre de la base en `docker-compose.yml`, tenés que actualizar también esta línea (todavía no usa variables de entorno / `.env`).
+> ⚠️ `python app/main.py` **does not work**: Python cannot find the `app` package that way. Use `uvicorn app.main:app` or `python -m app.main` from the project root.
 
 ---
 
-## 📡 Endpoints disponibles
+## 🔧 Configuration
 
-### Usuarios (`/users`)
+The application reads two environment variables:
 
-| Método | Ruta             | Descripción                              | Auth |
-|--------|------------------|-------------------------------------------|------|
-| POST   | `/users/signup`  | Registrar nuevo usuario                   | No   |
-| POST   | `/users/login`   | Login, devuelve JWT                       | No   |
-| GET    | `/users/me`      | Usuario autenticado actual                | Sí   |
-| GET    | `/users/{id}`    | Obtener usuario por ID                    | No   |
-| GET    | `/users/`        | Listar todos los usuarios                 | Sí   |
+| Variable       | Default                                              | Description                 |
+|----------------|------------------------------------------------------|-----------------------------|
+| `DATABASE_URL` | `postgresql://admin:password@localhost:5432/forumdb` | PostgreSQL connection       |
+| `JWT_SECRET`   | `dev-secret-not-for-production`                      | Key used to sign the tokens |
+
+Both must be set in production: the `JWT_SECRET` default is for development only.
+
+---
+
+## 📡 Endpoints
+
+### Users (`/users`)
+
+| Method | Route            | Description                  | Auth |
+|--------|------------------|------------------------------|------|
+| POST   | `/users/signup`  | Register a new user          | No   |
+| POST   | `/users/login`   | Log in, returns a JWT        | No   |
+| GET    | `/users/me`      | Current authenticated user   | Yes  |
+| GET    | `/users/{id}`    | Get a user by ID             | No   |
+| GET    | `/users/`        | List all users               | Yes  |
 
 ### Posts (`/posts`)
 
-| Método | Ruta                     | Descripción                          | Auth |
-|--------|--------------------------|----------------------------------------|------|
-| GET    | `/posts/`                | Listar posts (más recientes primero)   | No   |
-| GET    | `/posts/{id}`             | Obtener post por ID                    | No   |
-| POST   | `/posts/`                 | Crear post                             | Sí   |
-| PATCH  | `/posts/{id}`             | Actualizar post                        | No*  |
-| DELETE | `/posts/{id}`             | Eliminar post                          | No*  |
-| GET    | `/posts/user/{user_id}`   | Posts de un usuario                    | No   |
+| Method | Route             | Description                         | Auth |
+|--------|-------------------|-------------------------------------|------|
+| GET    | `/posts/`         | List posts (newest first)           | No   |
+| GET    | `/posts/me`       | Posts by the authenticated user     | Yes  |
+| GET    | `/posts/{id}`     | Get a post by ID                    | No   |
+| POST   | `/posts/`         | Create a post                       | Yes  |
+| PATCH  | `/posts/{id}`     | Update a post (author only)         | Yes  |
+| DELETE | `/posts/{id}`     | Delete a post (author only)         | Yes  |
 
-\* `PATCH` y `DELETE` de posts todavía no exigen autenticación ni validan que el usuario sea el autor — pendiente de reforzar.
+A post has a `title`, `content` and `post_type`, which can only be `album` or `song`. Deleting a post also deletes its comments (cascade).
 
-### Comentarios (`/comment`)
+### Comments (`/comment`)
 
-El router de comentarios (`app/api/routes/comment.py`) existe pero **todavía no está registrado en `main.py`** y tiene errores pendientes (usa una variable `post_id` no definida, y un endpoint `POST` sin función implementada). No está operativo por ahora.
+| Method | Route                      | Description                          | Auth |
+|--------|----------------------------|--------------------------------------|------|
+| GET    | `/comment/`                | List all comments                    | No   |
+| GET    | `/comment/me`              | Comments by the authenticated user   | Yes  |
+| GET    | `/comment/user/{user_id}`  | Comments by a given user             | No   |
+| GET    | `/comment/{id}`            | Get a comment by ID                  | No   |
+| POST   | `/comment/post/{post_id}`  | Comment on a post                    | Yes  |
 
----
-
-## 🔐 Autenticación
-
-1. El usuario se registra en `POST /users/signup` (contraseña hasheada con bcrypt).
-2. Hace login en `POST /users/login` (formato `OAuth2PasswordRequestForm`: `username` + `password`) y recibe un JWT.
-3. Ese token se envía como `Authorization: Bearer <token>` en los endpoints protegidos.
-4. El token expira a los **2 minutos** (`ACCESS_TOKEN_DURATION = 2` en `app/utils/security.py`) — útil tenerlo en cuenta al probar la API, puede convenir subir este valor en desarrollo.
-
-> La clave secreta (`SECRET`) está hardcodeada en el código fuente (`security.py` y `user.py`). Antes de llevar esto a producción conviene moverla a una variable de entorno.
+`GET /comment/user/{user_id}` returns 404 if the user does not exist, and an empty list if the user exists but has not commented yet.
 
 ---
 
-## 🧪 Próximos pasos sugeridos
+## 🔐 Authentication
 
-- Mover `DATABASE_URL` y `SECRET` a variables de entorno (`.env`).
-- Completar y registrar el router de comentarios.
-- Añadir Dockerfile real para la API y sumarla al `docker-compose.yml`.
-- Proteger `PATCH`/`DELETE` de posts con autenticación y verificación de autor.
-- Añadir dependencia `python-jose` a `requirements.txt`.
-- Tests (existe carpeta `.tests/` y `.pytest_cache/`, revisar cobertura actual).
+1. Sign up with `POST /users/signup` (the password is stored hashed with bcrypt).
+2. Log in with `POST /users/login`. It is sent as a **form** (`OAuth2PasswordRequestForm`: `username` and `password` fields), not as JSON.
+3. Send the token on protected routes: `Authorization: Bearer <token>`.
+4. The token expires after **15 minutes** (`ACCESS_TOKEN_DURATION` in `app/utils/security.py`).
+
+---
+
+## 🧪 Tests
+
+```bash
+pytest -v
+```
+
+The tests run against the test Postgres (`db_test`, port 5433) and create and drop the tables around every test, so they never touch your development data. The `db` container is not even needed to run them.
+
+Details (fixtures, seed data, how to add a test) are in **[test/README.md](test/README.md)**.
+
+---
+
+## 🗺️ Next steps
+
+### Missing tests
+
+- **`GET /comment/user/{user_id}` has no tests yet.** Cases to cover, in `test/tests/test_comments.py`:
+  1. User with comments → 200, only that user's comments (`seed.comments_by(user_id)` gives the expected list).
+  2. User without comments → 200 and `[]` (sign up a new user inside the test).
+  3. Unknown user → 404.
+  4. Optional: results are ordered by `created_at`.
+
+### Known bugs
+
+- `GET /comment/me` returns 404 instead of an empty list when the user has no comments. The test covering it is marked `xfail` in `test/tests/test_comments.py`.
+
+### Inconsistencies
+
+- `GET /comment/user/{user_id}` orders comments oldest first, while the other list endpoints return newest first (`.desc()`).
+- `PATCH /posts/{id}` behaves like a PUT: it requires `title`, `content` and `post_type`. A real PATCH would use a `PostUpdate` schema with optional fields.
+
+### Improvements
+
+- Move the test database URL to an environment variable (`TEST_DATABASE_URL`).
+- Split test dependencies into a `requirements-dev.txt`.
+- CI with GitHub Actions: run `pytest` on every push.
+- Alembic for migrations (`create_all` does not update existing tables).
+- CORS, needed for a browser-based client (e.g. Flutter Web).
+- Pagination on the list endpoints.
+- A Dockerfile for the API, added to `docker-compose.yml`.
+- Missing endpoints: edit and delete comments.
+- Ideas: votes, replies to comments, `updated_at` on posts.

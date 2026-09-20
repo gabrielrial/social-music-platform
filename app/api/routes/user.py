@@ -17,11 +17,6 @@ router = APIRouter(prefix="/users", tags=["users"])
 def get_users(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
-        )
-
     return db.query(User).all()
 
 

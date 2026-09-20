@@ -18,7 +18,7 @@ def get_comments(db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=list[CommentResponse])
-def get_comment(
+def get_my_comments(
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -71,6 +71,13 @@ def create_comment(
 
     return comment
 
+@router.get("/user/{user_id}", response_model=list[CommentResponse], status_code=status.HTTP_200_OK)
+def get_comments_from_user(user_id: int, db: Session = Depends(get_db)):
 
-# Comments from a specific user?
-# @router.get("/{user_id}", response_model=list[PostComment])
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    comments = db.query(Comment).filter(Comment.author_id == user.id).order_by(Comment.created_at).all()
+
+    return comments

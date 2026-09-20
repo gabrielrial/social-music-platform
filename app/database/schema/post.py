@@ -1,10 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-from enum import Enum
+from app.database.models.post import PostType
 
-class PostType(str, Enum):
-    ALBUM = "album"
-    SONG = "song"
 
 class PostCreate(BaseModel):
     title: str

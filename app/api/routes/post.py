@@ -19,12 +19,6 @@ def get_posts(db: Session = Depends(get_db)):
 def get_user_posts(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    print("POSTS/ME")
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authorized"
-        )
-
     post = db.query(Post).filter(Post.author_id == current_user.id).all()
 
     return post
