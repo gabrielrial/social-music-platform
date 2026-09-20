@@ -70,19 +70,22 @@ def update_post(
 
     post = db.query(Post).filter(Post.id == post_id).first()
 
+    
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
-
+    
     if user.id != post.author_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to modify this post",
         )
 
+
     post.title = data.title
     post.content = data.content
+    post.post_type = data.post_type
 
     db.commit()
     db.refresh(post)

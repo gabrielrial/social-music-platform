@@ -1,15 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.database.models.user import Base
+from app.database.conf.alch_conf import Base
+from app.database.models import user, post, comment
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+POSTGRESQL_DATABASE_URL = "postgresql://admin:password@localhost:5433/forumdb_test"
 from sqlalchemy.pool import StaticPool
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
-)
+engine = create_engine(POSTGRESQL_DATABASE_URL) 
 
 TestingSessionLocal = sessionmaker(
     autocommit=False,

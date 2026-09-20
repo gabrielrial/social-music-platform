@@ -10,5 +10,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  db_test:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: forumdb_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+      
 volumes:
   postgres_data:
