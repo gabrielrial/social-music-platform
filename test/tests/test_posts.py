@@ -1,5 +1,3 @@
-import pytest
-
 from app.database.models.comment import Comment
 
 NEW_POST = {

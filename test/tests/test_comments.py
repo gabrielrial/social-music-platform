@@ -2,7 +2,7 @@ import pytest
 
 from app.database.models.comment import Comment
 from app.database.models.post import Post
-from tests.seed import COMMENTS_PER_POST
+from test.conf.seed import COMMENTS_PER_POST
 
 
 # ------------------------------------------------------------- seeded data
