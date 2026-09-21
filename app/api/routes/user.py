@@ -56,7 +56,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     return user
 
 
-@router.post("/signup", response_model=UserResponse)
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
 
     existing_email = get_user_by_email(db, user.email)
