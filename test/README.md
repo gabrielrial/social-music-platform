@@ -43,7 +43,7 @@ pytest -s                                               # show print() output
 
 The tests **never touch the development database**. It works with three pieces:
 
-1. `conf/conf_database.py` creates its own engine against `forumdb_test` (port **5433**).
+1. `conf/conf_database.py` creates its own engine from `TEST_DATABASE_URL` (default `forumdb_test` on port **5433**). It never reads `DATABASE_URL`, and it refuses to start if both point to the same database.
 2. `conftest.py` sets `app.dependency_overrides[get_db] = override_get_db`: wherever an endpoint asks for `Depends(get_db)`, FastAPI hands it a test database session instead. The endpoints do not change.
 3. The `setup_db` fixture (`autouse=True`) creates the tables before each test and drops them afterwards.
 

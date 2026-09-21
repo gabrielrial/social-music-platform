@@ -119,13 +119,14 @@ Tables are created when the server starts (`create_all` inside FastAPI's `lifesp
 
 ## 🔧 Configuration
 
-The application reads two environment variables:
+The application reads these environment variables:
 
 | Variable       | Default                                              | Description                 |
 |----------------|------------------------------------------------------|-----------------------------|
 | `DATABASE_URL` | `postgresql://admin:password@localhost:5432/forumdb` | PostgreSQL connection       |
 | `JWT_SECRET`   | `dev-secret-not-for-production`                      | Key used to sign the tokens |
-| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Comma-separated origins allowed to call the API from a browser |
+| `CORS_ORIGINS` | `http://localhost:8080`                              | Comma-separated origins allowed to call the API from a browser |
+| `TEST_DATABASE_URL` | `postgresql://admin:password@localhost:5433/forumdb_test` | Database used by the tests (never `DATABASE_URL`) |
 
 Both must be set in production: the `JWT_SECRET` default is for development only.
 
@@ -212,12 +213,11 @@ Details (fixtures, seed data, how to add a test) are in **[test/README.md](test/
 
 ### Improvements
 
-- Move the test database URL to an environment variable (`TEST_DATABASE_URL`).
+- `GET /posts/{post_id}/comments`, and edit/delete for comments.
+- Input validation: `EmailStr`, minimum password length, non-empty titles and comments.
+- `POST /users/signup` should return `201 Created`.
 - Split test dependencies into a `requirements-dev.txt`.
-- CI with GitHub Actions: run `pytest` on every push.
 - Alembic for migrations (`create_all` does not update existing tables).
-- CORS, needed for a browser-based client (e.g. Flutter Web).
-- Pagination on the list endpoints.
+- Pagination on the list endpoints, and indexes on the foreign keys.
 - A Dockerfile for the API, added to `docker-compose.yml`.
-- Missing endpoints: edit and delete comments.
-- Ideas: votes, replies to comments, `updated_at` on posts.
+- Ideas: a `rating` on posts, votes, replies to comments, `updated_at` on posts.
