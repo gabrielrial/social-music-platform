@@ -52,11 +52,30 @@ requirements.txt              # Python dependencies (app + tests)
 
 ## 🚀 Getting started
 
-### 1. Install dependencies
+### Quick start (Makefile)
 
 ```bash
 git clone <repo-url>
 cd Rate
+make install   # create .venv and install dependencies
+make run       # start the dev database and the API
+```
+
+| Command        | What it does                                              |
+|----------------|-----------------------------------------------------------|
+| `make help`    | List all commands                                         |
+| `make install` | Create `.venv` and install `requirements.txt`             |
+| `make run`     | Start the dev database (`db`) and the API with `--reload` |
+| `make test`    | Start the test database (`db_test`) and run `pytest -v`   |
+| `make down`    | Stop the containers (development data is kept)            |
+| `make db-drop` | Stop the containers and **delete** the development data (asks for confirmation) |
+| `make clean`   | Remove `__pycache__` and `.pytest_cache`                  |
+
+The steps below explain what those commands do, if you prefer to run them by hand.
+
+### 1. Install dependencies
+
+```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt    # includes pytest and httpx for the tests
@@ -106,6 +125,7 @@ The application reads two environment variables:
 |----------------|------------------------------------------------------|-----------------------------|
 | `DATABASE_URL` | `postgresql://admin:password@localhost:5432/forumdb` | PostgreSQL connection       |
 | `JWT_SECRET`   | `dev-secret-not-for-production`                      | Key used to sign the tokens |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173,http://localhost:8080` | Comma-separated origins allowed to call the API from a browser |
 
 Both must be set in production: the `JWT_SECRET` default is for development only.
 
@@ -162,7 +182,7 @@ A post has a `title`, `content` and `post_type`, which can only be `album` or `s
 ## 🧪 Tests
 
 ```bash
-pytest -v
+make test      # or, with the db_test container already running: pytest -v
 ```
 
 The tests run against the test Postgres (`db_test`, port 5433) and create and drop the tables around every test, so they never touch your development data. The `db` container is not even needed to run them.
