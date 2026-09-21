@@ -8,7 +8,7 @@ def test_signup_creates_user(client, seed):
         "/users/signup",
         json={"username": "nuevo", "email": "nuevo@test.com", "password": "secreto"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.json()
     assert data["username"] == "nuevo"
     assert data["email"] == "nuevo@test.com"
