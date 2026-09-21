@@ -6,6 +6,9 @@ seed_database() fills the test database with:
   - 20 posts (random author, random album or song)
   - 3 comments per post (60 in total, random author)
 
+seed_social() adds genres (to posts and users) and likes on top of that.
+scripts/seed_dev.py uses both to fill the development database (`make seed`).
+
 It uses random.Random(42): the data looks random but is ALWAYS the same on
 every run, so a failing test fails the same way next time and can be
 investigated.
@@ -18,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.database.models.comment import Comment
+from app.database.models.genre import Genre
+from app.database.models.like import Like
 from app.database.models.post import Post, PostType
 from app.database.models.user import User
 from app.utils.security import hash_password
@@ -98,6 +103,10 @@ class SeedData:
     users: list[dict] = field(default_factory=list)     # {id, username, email}
     posts: list[dict] = field(default_factory=list)     # {id, author_id, title, post_type}
     comments: list[dict] = field(default_factory=list)  # {id, author_id, post_id, content}
+    # Filled only by seed_social():
+    user_genres: dict[int, list[str]] = field(default_factory=dict)  # user_id -> genre names
+    post_genres: dict[int, list[str]] = field(default_factory=dict)  # post_id -> genre names
+    likes: list[dict] = field(default_factory=list)                  # {user_id, post_id}
 
     def posts_by(self, user_id: int) -> list[dict]:
         return [p for p in self.posts if p["author_id"] == user_id]
@@ -107,6 +116,9 @@ class SeedData:
 
     def comments_on(self, post_id: int) -> list[dict]:
         return [c for c in self.comments if c["post_id"] == post_id]
+
+    def likes_on(self, post_id: int) -> list[dict]:
+        return [l for l in self.likes if l["post_id"] == post_id]
 
 
 def seed_database(db: Session, rng_seed: int = 42) -> SeedData:
@@ -167,4 +179,55 @@ def seed_database(db: Session, rng_seed: int = 42) -> SeedData:
         {"id": c.id, "author_id": c.author_id, "post_id": c.post_id, "content": c.content}
         for c in comments
     ]
+    return data
+
+
+# Genres that fit the blues/rock seed posts. Users can pick from the whole
+# catalog, so some of their tastes will not match any post (discover feed).
+_POST_GENRES = ["blues", "rock", "soul", "jazz", "funk", "folk", "r&b", "country"]
+
+LIKE_PROBABILITY = 0.3
+
+
+def seed_social(db: Session, data: SeedData, rng_seed: int = 7) -> SeedData:
+    """Add genres and likes on top of seed_database().
+
+    Kept separate on purpose: most tests want the plain seed (no likes, users
+    without genres) so their expected numbers stay simple. The home/feed tests
+    and the development seed (`make seed`) call this too.
+
+      - every post gets 1 to 3 genres
+      - every user gets 2 to 4 favourite genres, EXCEPT the last user, who
+        gets none (to exercise the "no genres -> popular" fallback)
+      - every user likes each post of someone else with a 30% chance
+    """
+    rng = random.Random(rng_seed)
+    genres = {g.name: g for g in db.query(Genre).all()}
+    posts = {p.id: p for p in db.query(Post).all()}
+    users = {u.id: u for u in db.query(User).all()}
+
+    # --- Post genres ----------------------------------------------------
+    for post_id in sorted(posts):
+        names = sorted(rng.sample(_POST_GENRES, k=rng.randint(1, 3)))
+        posts[post_id].genres = [genres[n] for n in names]
+        data.post_genres[post_id] = names
+
+    # --- User genres ----------------------------------------------------
+    user_ids = sorted(users)
+    for user_id in user_ids[:-1]:
+        names = sorted(rng.sample(sorted(genres), k=rng.randint(2, 4)))
+        users[user_id].genres = [genres[n] for n in names]
+        data.user_genres[user_id] = names
+    data.user_genres[user_ids[-1]] = []
+
+    # --- Likes ----------------------------------------------------------
+    likes = []
+    for user_id in user_ids:
+        for post_id in sorted(posts):
+            if posts[post_id].author_id != user_id and rng.random() < LIKE_PROBABILITY:
+                likes.append(Like(user_id=user_id, post_id=post_id))
+    db.add_all(likes)
+    db.commit()
+
+    data.likes = [{"user_id": l.user_id, "post_id": l.post_id} for l in likes]
     return data
