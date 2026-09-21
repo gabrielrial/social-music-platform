@@ -1,12 +1,15 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database.conf.alch_conf import Base
 from app.database.models import user, post, comment
 
-POSTGRESQL_DATABASE_URL = "postgresql://admin:password@localhost:5433/forumdb_test"
-from sqlalchemy.pool import StaticPool
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://admin:password@localhost:5433/forumdb_test"
+)
 
-engine = create_engine(POSTGRESQL_DATABASE_URL) 
+
+engine = create_engine(DATABASE_URL) 
 
 TestingSessionLocal = sessionmaker(
     autocommit=False,
