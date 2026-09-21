@@ -29,6 +29,7 @@ app/
     ├── models/               # ORM models (user, post, comment, genre, like)
     └── schema/               # Pydantic schemas (request/response)
 
+frontend/                     # Demo web client, plain HTML/JS, served at /app (see frontend/README.md)
 scripts/seed_dev.py           # Fills the dev database with sample data (make seed)
 
 test/                         # Test suite (see test/README.md)
@@ -68,6 +69,8 @@ make run       # start the dev database and the API
 | `make help`    | List all commands                                         |
 | `make install` | Create `.venv` and install `requirements.txt`             |
 | `make run`     | Start the dev database (`db`) and the API with `--reload` |
+| `make front`   | Serve the demo frontend on http://localhost:8080 (needs `make run` in another terminal) |
+| `make share`   | Expose the API and the frontend on a public URL with ngrok (needs `make run`; `NGROK_URL=<domain>` for a fixed URL) |
 | `make seed`    | Fill the dev database with sample users, posts, comments, genres and likes (only if it has no users) |
 | `make seed-reset` | Wipe the dev database tables and seed them again (asks for confirmation) |
 | `make test`    | Start the test database (`db_test`) and run `pytest -v`   |
@@ -120,6 +123,14 @@ Tables are created when the server starts (`create_all` inside FastAPI's `lifesp
 To have something to look at in `/docs`, run `make seed`: 10 users (`john0`, `janis1`… `jimi9`), all with password `password123`, 20 posts, 60 comments, genres and likes. `jimi9` has no favourite genres on purpose, to show the fallback of `/home/recommended`.
 
 > ⚠️ `python app/main.py` **does not work**: Python cannot find the `app` package that way. Use `uvicorn app.main:app` or `python -m app.main` from the project root.
+
+### Demo frontend
+
+`frontend/` is a small web client in plain HTML, CSS and JavaScript (no build step) to show the API working. With `make run` it is already served at **http://localhost:8000/app** (log in with `john0` / `password123`). `make front` serves it separately on http://localhost:8080.
+
+To share it on the internet, `make share` opens an ngrok tunnel to port 8000 (frontend at `<ngrok-url>/app`).
+
+Everything about it (views, how it picks the API URL, CORS troubleshooting, step-by-step ngrok setup and the security notes) is in **[frontend/README.md](frontend/README.md)**.
 
 ---
 

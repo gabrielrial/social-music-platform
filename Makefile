@@ -6,7 +6,7 @@ VENV    = .venv/bin
 
 # These targets are command names, not files. Without this, `make test`
 # would do nothing because a folder called `test/` already exists.
-.PHONY: help install db-up run seed seed-reset test down db-drop clean
+.PHONY: help install db-up run front share seed seed-reset test down db-drop clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-10s %s\n", $$1, $$2}'
@@ -20,6 +20,14 @@ db-up: ## Start the development database (port 5432)
 
 run: db-up ## Start the dev database and the API with auto-reload
 	$(VENV)/uvicorn app.main:app --reload
+
+front: ## Serve the demo frontend on http://localhost:8080 (run `make run` in another terminal)
+	@echo "Frontend on http://localhost:8080 (the API must be running: make run)"
+	python3 -m http.server 8080 --directory frontend
+
+share: ## Expose the API + frontend with ngrok (run `make run` first; NGROK_URL=<domain> for a fixed URL)
+	@echo "Frontend at <ngrok url>/app  -  API docs at <ngrok url>/docs"
+	ngrok http $(if $(NGROK_URL),--url=$(NGROK_URL)) 8000
 
 seed: db-up ## Fill the dev database with sample users, posts, genres and likes
 	$(VENV)/python -m scripts.seed_dev
