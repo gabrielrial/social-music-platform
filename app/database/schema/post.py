@@ -1,11 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-from enum import Enum
-#from database.models.comment import Comment
+from app.database.models.post import PostType
 
-class PostType(str, Enum):
-    ALBUM = "album"
-    SONG = "song"
 
 class PostCreate(BaseModel):
     title: str
@@ -30,5 +26,4 @@ class PostComment(BaseModel):
     author_id: int
     content: str
     post_type: PostType
-#    comments: list[Comment]
     created_at: datetime

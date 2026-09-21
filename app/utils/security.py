@@ -1,8 +1,9 @@
+import os
 from passlib.context import CryptContext
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_DURATION = 15
-SECRET = "70ddbfecf49a1d435674562e4775b9f873962d0e28511203a65a202df88d89c5"
+SECRET = os.getenv("JWT_SECRET", "dev-secret-not-for-production")
 
 crypt = CryptContext(
     schemes=["bcrypt"],

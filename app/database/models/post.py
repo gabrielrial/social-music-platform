@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from database.conf.alch_conf import Base
+from app.database.conf.alch_conf import Base
 from sqlalchemy import func
 from enum import Enum
 from sqlalchemy import Column, Enum as SQLEnum
@@ -28,4 +28,8 @@ class Post(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    #comments = relationship("Comment", backref="post", cascade="all, delete-orphan")
+    comments = relationship(
+        "Comment", back_populates="post", cascade="all, delete-orphan"
+    )
+
+    

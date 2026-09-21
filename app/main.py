@@ -1,26 +1,37 @@
-from fastapi import FastAPI, Request
-from database.conf.alch_conf import engine, Base
-from api.routes.user import router as user_router
-from api.routes.post import router as post_router
-from api.routes.comment import router as comment_router
+import os
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.database.conf.alch_conf import engine, Base
+from app.api.routes.user import router as user_router
+from app.api.routes.post import router as post_router
+from app.api.routes.comment import router as comment_router
 
 
-# Crear las tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
 
-# Crear la aplicación FastAPI
-app = FastAPI(title="Rate API", version="1.0.0")
+app = FastAPI(title="Rate API", version="1.0.0", lifespan=lifespan)
 
-#@app.middleware("http")
-#async def log_time(request: Request, call_next):
-#    print("Middleware")
-#    response = await call_next(request)
-#    return response
 
-# Incluir routers
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:8080"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in CORS_ORIGINS],
+    allow_credentials=False,  # auth goes in the Authorization header, not in cookies
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
 app.include_router(user_router)
 app.include_router(post_router)
 app.include_router(comment_router)
+
 
 
 @app.get("/")
