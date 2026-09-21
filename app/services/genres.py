@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.models.genre import Genre
 
@@ -30,3 +31,16 @@ def seed_genres(db: Session) -> None:
     if missing:
         db.add_all(missing)
         db.commit()
+
+
+def get_genres_by_ids(db: Session, genre_ids: list[int]) -> list[Genre]:
+    wanted = set(genre_ids)
+    genres = db.query(Genre).filter(Genre.id.in_(wanted)).all()
+
+    unknown = wanted - {g.id for g in genres}
+    if unknown:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Unknown genre ids: {sorted(unknown)}",
+        )
+    return genres

@@ -6,9 +6,11 @@ from app.utils.security import hash_password, verify_password
 
 from app.database.models.user import User
 from app.database.schema.user import UserCreate, UserResponse
+from app.database.schema.genre import GenreResponse, GenreIds
 from app.database.conf.dependencies import get_db
 from app.services.auth import get_current_user, create_access_token
 from app.services.users import get_user_by_email, get_user_by_username
+from app.services.genres import get_genres_by_ids
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -23,6 +25,25 @@ def get_users(
 @router.get("/me", response_model=UserResponse)
 def me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/me/genres", response_model=list[GenreResponse])
+def get_my_genres(current_user: User = Depends(get_current_user)):
+    return current_user.genres
+
+
+@router.put("/me/genres", response_model=list[GenreResponse])
+def set_my_genres(
+    data: GenreIds,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # PUT replaces the whole list: assigning it makes SQLAlchemy delete the
+    # old rows in user_genres and insert the new ones.
+    current_user.genres = get_genres_by_ids(db, data.genre_ids)
+    db.commit()
+    db.refresh(current_user)
+    return current_user.genres
 
 
 @router.get("/{user_id}", response_model=UserResponse)

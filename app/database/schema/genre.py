@@ -6,3 +6,7 @@ class GenreResponse(BaseModel):
 
     id: int
     name: str
+
+
+class GenreIds(BaseModel):
+    genre_ids: list[int]
