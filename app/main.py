@@ -7,6 +7,7 @@ from app.api.routes.user import router as user_router
 from app.api.routes.post import router as post_router
 from app.api.routes.comment import router as comment_router
 from app.api.routes.genre import router as genre_router
+from app.api.routes.home import router as home_router
 from app.services.genres import seed_genres
 
 
@@ -36,6 +37,7 @@ app.include_router(user_router)
 app.include_router(post_router)
 app.include_router(comment_router)
 app.include_router(genre_router)
+app.include_router(home_router)
 
 
 
