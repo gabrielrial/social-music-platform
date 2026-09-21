@@ -231,10 +231,6 @@ Details (fixtures, seed data, how to add a test) are in **[test/README.md](test/
   3. Unknown user → 404.
   4. Optional: results are ordered by `created_at`.
 
-### Known bugs
-
-- `GET /comment/me` returns 404 instead of an empty list when the user has no comments. The test covering it is marked `xfail` in `test/tests/test_comments.py`.
-
 ### Inconsistencies
 
 - `GET /comment/user/{user_id}` orders comments oldest first, while the other list endpoints return newest first (`.desc()`).
