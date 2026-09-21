@@ -114,7 +114,7 @@ It is a separate function on purpose: most tests want the plain seed so their ex
 
 Marks a test that fails because of a **known bug**: it shows up as `XFAIL` and does not break the suite. With `strict=True`, once the bug is fixed the test passes and pytest reports `XPASS(strict)`, which is the signal to remove the mark.
 
-There is currently one: `GET /comment/me` returns 404 instead of `[]` when the user has no comments.
+There are none right now. The last one covered `GET /comment/me` returning 404 instead of `[]`; once it was fixed the mark was removed.
 
 ---
 

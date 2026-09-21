@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from app.database.schema.comment import CommentResponse, CommentCreate
 from app.database.models.comment import Comment
-from app.database.schema.user import UserResponse
 from app.database.models.user import User
 from app.database.models.post import Post
 from app.services.auth import get_current_user
@@ -19,15 +18,17 @@ def get_comments(db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=list[CommentResponse])
 def get_my_comments(
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    comments = (
+        db.query(Comment)
+        .filter(Comment.author_id == current_user.id)
+        .order_by(Comment.created_at.desc())
+        .all()
+    )
 
-    comment = db.query(Comment).filter(Comment.author_id == current_user.id).all()
-
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-    return comment
+    return comments
 
 
 @router.get("/{comment_id}", response_model=CommentResponse)

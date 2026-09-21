@@ -1,4 +1,3 @@
-import pytest
 
 from app.database.models.comment import Comment
 from app.database.models.post import Post
@@ -42,7 +41,13 @@ def test_my_comments_only_returns_mine(client, seed, login):
     assert all(c["author_id"] == user["id"] for c in comments)
 
 
-@pytest.mark.xfail(reason="BUG: /comment/me returns 404 instead of [] when there are none", strict=True)
+def test_my_comments_newest_first(client, seed, login):
+    user = next(u for u in seed.users if len(seed.comments_by(u["id"])) > 1)
+    comments = client.get("/comment/me", headers=login(user["username"])).json()
+    dates = [c["created_at"] for c in comments]
+    assert dates == sorted(dates, reverse=True)
+
+
 def test_my_comments_empty_returns_empty_list(client, seed, login):
     client.post(
         "/users/signup",
