@@ -20,3 +20,14 @@ class PostResponse(BaseModel):
     post_type: PostType
     created_at: datetime
     genres: list[GenreResponse]
+    like_count: int
+    liked_by_me: bool
+
+
+class LikeStatus(BaseModel):
+    """Response of POST/DELETE /posts/{id}/like: enough for a client to
+    update the heart icon and the counter without reloading the post."""
+
+    post_id: int
+    like_count: int
+    liked_by_me: bool

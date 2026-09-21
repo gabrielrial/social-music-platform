@@ -11,6 +11,10 @@ from app.services.users import get_user_by_username
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
+# Same scheme, but it does not raise 401 when the header is missing: it
+# returns None. For public endpoints that show more if you are logged in.
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login", auto_error=False)
+
 
 credentials_exception = HTTPException(
     status_code=401,
@@ -23,7 +27,22 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
+    return _user_from_token(token, db)
 
+
+def get_optional_user(
+    token: str | None = Depends(optional_oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    """None if there is no token. A token that IS sent but is invalid or
+    expired still gives 401, so the client knows it has to log in again
+    instead of silently getting the anonymous view."""
+    if token is None:
+        return None
+    return _user_from_token(token, db)
+
+
+def _user_from_token(token: str, db: Session):
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
 
