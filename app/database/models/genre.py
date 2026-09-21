@@ -20,3 +20,10 @@ user_genres = Table(
     Column("user_id", ForeignKey("users.id"), primary_key=True),
     Column("genre_id", ForeignKey("genres.id"), primary_key=True),
 )
+
+post_genres = Table(
+    "post_genres",
+    Base.metadata,
+    Column("post_id", ForeignKey("posts.id"), primary_key=True),
+    Column("genre_id", ForeignKey("genres.id"), primary_key=True),
+)

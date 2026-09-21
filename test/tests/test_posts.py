@@ -160,3 +160,72 @@ def test_delete_other_users_post_forbidden(client, seed, login):
 
 def test_delete_post_requires_auth(client, seed):
     assert client.delete(f"/posts/{seed.posts[0]['id']}").status_code == 401
+
+
+# ---------------------------------------------------------------- genres
+
+
+def genre_ids(client, *names):
+    catalog = {g["name"]: g["id"] for g in client.get("/genres/").json()}
+    return [catalog[n] for n in names]
+
+
+def names(post_json):
+    return [g["name"] for g in post_json["genres"]]
+
+
+def test_create_post_with_genres(client, seed, login):
+    headers = login(seed.users[0]["username"])
+    body = {**NEW_POST, "genre_ids": genre_ids(client, "rock", "blues")}
+    response = client.post("/posts/", json=body, headers=headers)
+    assert response.status_code == 201
+    assert names(response.json()) == ["blues", "rock"]
+    # Also visible when reading the post back
+    assert names(client.get(f"/posts/{response.json()['id']}").json()) == ["blues", "rock"]
+
+
+def test_create_post_without_genres(client, seed, login):
+    response = client.post("/posts/", json=NEW_POST, headers=login(seed.users[0]["username"]))
+    assert response.status_code == 201
+    assert response.json()["genres"] == []
+
+
+def test_create_post_unknown_genre(client, seed, login):
+    headers = login(seed.users[0]["username"])
+    body = {**NEW_POST, "genre_ids": [999999]}
+    assert client.post("/posts/", json=body, headers=headers).status_code == 422
+    assert len(client.get("/posts/").json()) == len(seed.posts)  # nothing created
+
+
+def test_update_post_genres(client, seed, login):
+    post = seed.posts[0]
+    author = next(u for u in seed.users if u["id"] == post["author_id"])
+    headers = login(author["username"])
+    body = {**NEW_POST, "genre_ids": genre_ids(client, "jazz")}
+    response = client.patch(f"/posts/{post['id']}", json=body, headers=headers)
+    assert response.status_code == 200
+    assert names(response.json()) == ["jazz"]
+
+
+def test_update_without_genre_ids_keeps_genres(client, seed, login):
+    headers = login(seed.users[0]["username"])
+    body = {**NEW_POST, "genre_ids": genre_ids(client, "rock")}
+    post_id = client.post("/posts/", json=body, headers=headers).json()["id"]
+
+    response = client.patch(f"/posts/{post_id}", json=NEW_POST, headers=headers)  # no genre_ids
+    assert names(response.json()) == ["rock"]
+
+
+def test_delete_post_removes_its_genre_links(client, seed, login, db):
+    from sqlalchemy import select
+    from app.database.models.genre import Genre, post_genres
+    from app.services.genres import GENRE_CATALOG
+
+    headers = login(seed.users[0]["username"])
+    body = {**NEW_POST, "genre_ids": genre_ids(client, "rock", "jazz")}
+    post_id = client.post("/posts/", json=body, headers=headers).json()["id"]
+
+    assert client.delete(f"/posts/{post_id}", headers=headers).status_code == 204
+    links = db.execute(select(post_genres).where(post_genres.c.post_id == post_id)).all()
+    assert links == []
+    assert db.query(Genre).count() == len(GENRE_CATALOG)  # the genres themselves stay

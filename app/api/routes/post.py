@@ -5,6 +5,7 @@ from app.database.models.user import User
 from app.database.conf.dependencies import get_db
 from app.database.schema.post import PostResponse, PostCreate
 from app.services.auth import get_current_user
+from app.services.genres import get_genres_by_ids
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -45,6 +46,7 @@ def create_post(
         content=post_data.content,
         author_id=current_user.id,
         post_type=post_data.post_type,
+        genres=get_genres_by_ids(db, post_data.genre_ids),
     )
 
     db.add(new_post)
@@ -80,6 +82,8 @@ def update_post(
     post.title = data.title
     post.content = data.content
     post.post_type = data.post_type
+    if "genre_ids" in data.model_fields_set:
+        post.genres = get_genres_by_ids(db, data.genre_ids)
 
     db.commit()
     db.refresh(post)

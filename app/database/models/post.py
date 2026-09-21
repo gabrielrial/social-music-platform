@@ -32,4 +32,6 @@ class Post(Base):
         "Comment", back_populates="post", cascade="all, delete-orphan"
     )
 
+    genres = relationship("Genre", secondary="post_genres", order_by="Genre.name")
+
     
