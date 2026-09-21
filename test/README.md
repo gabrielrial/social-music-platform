@@ -11,12 +11,17 @@ test/
 ├── conftest.py              # Shared fixtures + database override
 ├── conf/
 │   ├── conf_database.py     # Engine, sessions and create/drop of the test database
-│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments)
+│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments) + seed_social() (genres, likes)
 └── tests/
     ├── test_basic.py        # Smoke tests
     ├── test_users.py        # Signup, login, /me, listing
-    ├── test_posts.py        # Post CRUD and permissions
-    └── test_comments.py     # Comments
+    ├── test_posts.py        # Post CRUD, permissions and post genres
+    ├── test_comments.py     # Comments
+    ├── test_genres.py       # Genre catalog
+    ├── test_user_genres.py  # GET/PUT /users/me/genres
+    ├── test_likes.py        # Like/unlike, like_count, liked_by_me
+    ├── test_seed.py         # seed_social() itself
+    └── test_home.py         # The four /home feeds and pagination
 ```
 
 `conftest.py` must live in `test/`, not inside `conf/`: pytest loads it automatically by name, and its fixtures only reach the tests in its own folder and subfolders.
@@ -87,7 +92,17 @@ Important details:
 - Every post and comment gets its own `created_at`, so ordering by date is predictable.
 - `seed` is **not** `autouse`: only the tests that ask for it load data.
 
-`SeedData` has helpers to avoid repeating filters: `posts_by(user_id)`, `comments_by(user_id)` and `comments_on(post_id)`.
+`SeedData` has helpers to avoid repeating filters: `posts_by(user_id)`, `comments_by(user_id)`, `comments_on(post_id)` and `likes_on(post_id)`.
+
+The genre catalog is **not** part of the seed: `setup_test_db()` loads it before every test, like the app does on startup, so `GET /genres/` always has data.
+
+### `seed_social()`: genres and likes
+
+`seed_social(db, seed)` adds, on top of the normal seed: 1–3 genres per post, 2–4 favourite genres per user (except the **last user, who has none**, to test fallbacks) and random likes (30%, never on your own post). It fills `user_genres`, `post_genres` and `likes` in `SeedData`.
+
+It is a separate function on purpose: most tests want the plain seed so their expected numbers stay simple. `test_home.py` uses it through a `social` fixture, and `make seed` uses it for the development database.
+
+`test_home.py` computes the expected feed **in plain Python** from `SeedData` and compares it with the API response: if the SQL and the Python disagree, one of them is wrong.
 
 ---
 

@@ -2,7 +2,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database.conf.alch_conf import Base, DATABASE_URL as APP_DATABASE_URL
-from app.database.models import user, post, comment
+from app.database.models import user, post, comment, genre, like
+from app.services.genres import seed_genres
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql://admin:password@localhost:5433/forumdb_test"
@@ -35,6 +36,9 @@ def override_get_db():
 
 def setup_test_db():
     Base.metadata.create_all(bind=engine)
+    # Same as the app's lifespan: the genre catalog exists in every database.
+    with TestingSessionLocal() as db:
+        seed_genres(db)
 
 
 def teardown_test_db():

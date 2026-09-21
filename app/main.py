@@ -2,15 +2,20 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database.conf.alch_conf import engine, Base
+from app.database.conf.alch_conf import engine, Base, SessionLocal
 from app.api.routes.user import router as user_router
 from app.api.routes.post import router as post_router
 from app.api.routes.comment import router as comment_router
+from app.api.routes.genre import router as genre_router
+from app.api.routes.home import router as home_router
+from app.services.genres import seed_genres
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        seed_genres(db)  # the genre catalog is reference data: every database needs it
     yield
 
 app = FastAPI(title="Rate API", version="1.0.0", lifespan=lifespan)
@@ -31,6 +36,8 @@ app.add_middleware(
 app.include_router(user_router)
 app.include_router(post_router)
 app.include_router(comment_router)
+app.include_router(genre_router)
+app.include_router(home_router)
 
 
 

@@ -25,3 +25,8 @@ class User(Base):
 
     posts = relationship("Post", back_populates="author")
     comments = relationship("Comment", back_populates="author")
+
+    # Genres the user likes. `secondary` points to the association table
+    # (declared in models/genre.py): SQLAlchemy inserts and deletes its rows
+    # when this list changes.
+    genres = relationship("Genre", secondary="user_genres", order_by="Genre.name")
