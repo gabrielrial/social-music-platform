@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.database.schema.user import XUser
+from app.database.schema.user import UserPublic
 from pydantic import BaseModel, ConfigDict
 
 
@@ -17,9 +17,9 @@ class CommentResponse(BaseModel):
     created_at: datetime
 
 
-class XCommentResponse(BaseModel):
+class CommentDetail(BaseModel):
 
 	id: int
 	content: str
 	created_at: datetime
-	author: XUser
+	author: UserPublic

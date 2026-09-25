@@ -5,7 +5,7 @@ from app.database.models.user import User
 from app.database.models.comment import Comment
 from app.database.conf.dependencies import get_db
 from app.database.schema.post import PostResponse, PostCreate, LikeStatus
-from app.database.schema.comment import XCommentResponse
+from app.database.schema.comment import CommentDetail
 from app.database.schema.rating import RatingCreate, RatingStatus
 from app.services.auth import get_current_user, get_optional_user
 from app.services.likes import add_like, remove_like, count_likes
@@ -29,7 +29,7 @@ def get_posts(
     return mark_viewer_state(db, posts, user)
 
 
-@router.get("/{post_id}/comments", response_model=list[XCommentResponse])
+@router.get("/{post_id}/comments", response_model=list[CommentDetail])
 def get_comments_from_post_id(post_id: int, page: Pagi = Depends(), db=Depends(get_db)):
 
     post = db.query(Post).filter(Post.id == post_id).first()
