@@ -22,6 +22,9 @@ class PostResponse(BaseModel):
     genres: list[GenreResponse]
     like_count: int
     liked_by_me: bool
+    rating_avg: float | None  # None (null) when nobody has rated the post
+    rating_count: int
+    my_rating: int | None  # None when I haven't rated it or I'm anonymous
 
 
 class LikeStatus(BaseModel):

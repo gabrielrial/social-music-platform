@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database.conf.alch_conf import Base, DATABASE_URL as APP_DATABASE_URL
-from app.database.models import user, post, comment, genre, like
+from app.database.models import user, post, comment, genre, like, rating
 from app.services.genres import seed_genres
 
 TEST_DATABASE_URL = os.getenv(
