@@ -5,7 +5,7 @@ from app.database.models.user import User
 
 
 class FollowUser(Base):
-    __tablename__ = "userfollows"
+    __tablename__ = "follows"
 
     follower_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     following_id = Column(Integer, ForeignKey("users.id"), primary_key=True, index=True)

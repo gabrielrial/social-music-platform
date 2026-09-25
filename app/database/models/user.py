@@ -2,10 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy import func
 from app.database.conf.alch_conf import Base
 from sqlalchemy.orm import relationship
-
-# Models represent database tables. Each model defines the structure of a
-# specific table, including its columns, data types, relationships,
-# and whether fields are required or optional.
+from app.database.models.follow_user import FollowUser
 
 
 class User(Base):
@@ -30,3 +27,5 @@ class User(Base):
     # (declared in models/genre.py): SQLAlchemy inserts and deletes its rows
     # when this list changes.
     genres = relationship("Genre", secondary="user_genres", order_by="Genre.name")
+
+    following = relationship(FollowUser, cascade="all, delete-orphan") # How can I specify wich value from FollowUser belogns to?
