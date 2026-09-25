@@ -1,15 +1,22 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Query
 from sqlalchemy.orm import Session
 from app.database.models.post import Post
 from app.database.models.user import User
+from app.database.models.comment import Comment
 from app.database.conf.dependencies import get_db
 from app.database.schema.post import PostResponse, PostCreate, LikeStatus
+from app.database.schema.comment import XCommentResponse
 from app.services.auth import get_current_user, get_optional_user
 from app.services.likes import add_like, remove_like, count_likes, mark_liked_by
 from app.services.genres import get_genres_by_ids
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
+
+class Pagi:
+    def __init__(self, limit: int = Query(20, ge=1, le=100), offset: int = Query(0,ge=0)):
+        self.limit = limit
+        self.offset = offset
 
 @router.get("/", response_model=list[PostResponse])
 def get_posts(
@@ -18,6 +25,26 @@ def get_posts(
     posts = db.query(Post).order_by(Post.created_at.desc()).all()
     return mark_liked_by(db, posts, user)
 
+
+@router.get("/{post_id}/comments", response_model=list[XCommentResponse])
+def get_comments_from_post_id(post_id: int, page: Pagi = Depends(), db=Depends(get_db)):
+
+    post = db.query(Post).filter(Post.id == post_id).first()
+
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
+        )
+
+    comments = (
+        db.query(Comment)
+        .filter(Comment.post_id == post_id)
+        .order_by(Comment.created_at)
+        .limit(page.limit)
+        .offset(page.offset)
+    )
+
+    return comments
 
 @router.get("/me", response_model=list[PostResponse])
 def get_user_posts(
@@ -74,18 +101,16 @@ def update_post(
 
     post = db.query(Post).filter(Post.id == post_id).first()
 
-    
     if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Post not found"
         )
-    
+
     if user.id != post.author_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to modify this post",
         )
-
 
     post.title = data.title
     post.content = data.content
@@ -141,7 +166,9 @@ def like_post(
 ):
     _get_post_or_404(db, post_id)
     add_like(db, user.id, post_id)
-    return LikeStatus(post_id=post_id, like_count=count_likes(db, post_id), liked_by_me=True)
+    return LikeStatus(
+        post_id=post_id, like_count=count_likes(db, post_id), liked_by_me=True
+    )
 
 
 @router.delete("/{post_id}/like", response_model=LikeStatus)
@@ -152,4 +179,6 @@ def unlike_post(
 ):
     _get_post_or_404(db, post_id)
     remove_like(db, user.id, post_id)
-    return LikeStatus(post_id=post_id, like_count=count_likes(db, post_id), liked_by_me=False)
+    return LikeStatus(
+        post_id=post_id, like_count=count_likes(db, post_id), liked_by_me=False
+    )

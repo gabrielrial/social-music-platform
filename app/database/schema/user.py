@@ -13,3 +13,6 @@ class UserResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class XUser(BaseModel):
+	id: int
+	username: str
