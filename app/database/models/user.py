@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy import func
 from app.database.conf.alch_conf import Base
 from sqlalchemy.orm import relationship
-from app.database.models.follow_user import FollowUser
+from app.database.models.follow import Follow
 
 
 class User(Base):
@@ -28,4 +28,16 @@ class User(Base):
     # when this list changes.
     genres = relationship("Genre", secondary="user_genres", order_by="Genre.name")
 
-    following = relationship(FollowUser, cascade="all, delete-orphan") # How can I specify wich value from FollowUser belogns to?
+    following = relationship(
+        Follow,
+        foreign_keys=[Follow.follower_id],
+        backref="follower",  # Follow.follower -> User
+        cascade="all, delete-orphan",
+    )
+    followers = relationship(
+        Follow,
+        foreign_keys=[Follow.following_id],
+        backref="followed",  # Follow.followed -> User
+        cascade="all, delete-orphan",
+    )
+    
