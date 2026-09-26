@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from app.database.models.follow_user import FollowUser
+from app.database.models.follow import Follow
 
 def unfollow(db: Session, follower: int, following: int):
-    db.query(FollowUser).filter(FollowUser.follower_id == follower, FollowUser.following_id == following).delete()
+    db.query(Follow).filter(Follow.follower_id == follower, Follow.following_id == following).delete()
     db.commit
