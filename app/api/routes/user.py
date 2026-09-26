@@ -118,6 +118,12 @@ def follow_user(user_id: int, user: User = Depends(get_current_user), db: Sessio
     db.execute(stmt)
     db.commit()
 
-    
+@router.delete("/{user_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
+def unfollow_user(user_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.query(Follow).filter(
+        Follow.follower_id == user.id,
+        Follow.following_id == user_id,
+    ).delete()
+    db.commit()
         
 
