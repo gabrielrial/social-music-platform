@@ -2,15 +2,21 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from app.utils.security import hash_password, verify_password
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
 from app.database.models.user import User
+from app.database.models.follow import Follow
+from app.database.schema.follow import CreateFollow
 from app.database.schema.user import UserCreate, UserResponse
 from app.database.schema.genre import GenreResponse, GenreIds
+from app.database.schema.follow import FollowResponse
 from app.database.conf.dependencies import get_db
 from app.services.auth import get_current_user, create_access_token
 from app.services.users import get_user_by_email, get_user_by_username
 from app.services.genres import get_genres_by_ids
+from app.services.users import get_user_or_404
+from app.services.follow import unfollow
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -98,3 +104,20 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     token = create_access_token({"sub": user.username})
 
     return {"access_token": token, "token_type": "bearer"}
+
+# ---------------------------------------------------------------- ratings    
+
+@router.put("/{user_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
+def follow_user(user_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user_id == user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You cannot follow yourself")
+
+    get_user_or_404(db, user_id)
+
+    stmt = pg_insert(Follow).values(follower_id=user.id, following_id=user_id).on_conflict_do_nothing()
+    db.execute(stmt)
+    db.commit()
+
+    
+        
+
