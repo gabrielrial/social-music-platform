@@ -54,6 +54,7 @@ function toast(msg, bad = false) {
 const ICON = {
   heart: '<svg class="icon" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
   comment: '<svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  star: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg>',
 };
 
 function avatarColor(name) {
@@ -204,6 +205,81 @@ function likeButton(p) {
     ${ICON.heart}<span>${p.like_count}</span></button>`;
 }
 
+// ------------------------------------------------------------------ ratings
+
+// "★ 4.3 (7)" on cards, or "No ratings" when rating_avg is null. The element
+// carries data-rating-of so the stars on the detail page can update it.
+function ratingSummary(p) {
+  const inner = p.rating_avg === null
+    ? `${ICON.star}<span>No ratings</span>`
+    : `${ICON.star}<span><strong>${p.rating_avg.toFixed(1)}</strong> (${p.rating_count})</span>`;
+  return `<span class="meta rating ${p.rating_avg === null ? "none" : ""}" data-rating-of="${p.id}" title="Average rating">${inner}</span>`;
+}
+
+// The 1-5 picker on the post page. What you can do depends on who you are:
+// anonymous -> log in; author -> read only (the API answers 403);
+// anyone else -> click a star (PUT) or remove the rating (DELETE).
+function ratingPicker(p) {
+  const mine = state.me && state.me.id === p.author_id;
+  const stars = [1, 2, 3, 4, 5].map((n) => `
+    <button type="button" class="star ${p.my_rating >= n ? "on" : ""}" data-rate="${n}" data-post="${p.id}"
+      ${!state.me || mine ? "disabled" : ""} aria-label="${n} star${n > 1 ? "s" : ""}">${ICON.star}</button>`).join("");
+
+  let hint;
+  if (!state.me) hint = `<a href="#/login">Log in</a> to rate this post.`;
+  else if (mine) hint = "You can't rate your own post.";
+  else hint = p.my_rating
+    ? `Your rating: ${p.my_rating}/5 · <button type="button" class="linkish inline" data-unrate="${p.id}">Remove</button>`
+    : "Click a star to rate it.";
+
+  return `<div class="rating-box" id="rating-box">
+    <div class="rating-big">${p.rating_avg === null ? "–" : p.rating_avg.toFixed(1)}</div>
+    <div>
+      <div class="stars" data-my-rating="${p.my_rating ?? 0}">${stars}</div>
+      <div class="hint rating-hint">${p.rating_count} rating${p.rating_count === 1 ? "" : "s"} · ${hint}</div>
+    </div>
+  </div>`;
+}
+
+// Hover preview: light up the stars up to the one under the mouse.
+document.addEventListener("mouseover", (e) => {
+  const star = e.target.closest(".stars .star:not(:disabled)");
+  const box = e.target.closest(".stars");
+  if (!box) return;
+  const n = star ? Number(star.dataset.rate) : Number(box.dataset.myRating);
+  box.querySelectorAll(".star").forEach((b) => b.classList.toggle("on", Number(b.dataset.rate) <= n));
+});
+document.addEventListener("mouseout", (e) => {
+  const box = e.target.closest(".stars");
+  if (!box || box.contains(e.relatedTarget)) return;
+  const n = Number(box.dataset.myRating);
+  box.querySelectorAll(".star").forEach((b) => b.classList.toggle("on", Number(b.dataset.rate) <= n));
+});
+
+// PUT and DELETE /posts/{id}/rating answer a RatingStatus (post_id,
+// rating_avg, rating_count, my_rating): enough to redraw the picker and the
+// summary without reloading the post, like the like button does.
+document.addEventListener("click", async (e) => {
+  const star = e.target.closest("[data-rate]");
+  const remove = e.target.closest("[data-unrate]");
+  if (!star && !remove) return;
+  if (!state.token) { toast("Log in to rate posts"); location.hash = "#/login"; return; }
+  const postId = star ? star.dataset.post : remove.dataset.unrate;
+  try {
+    const r = star
+      ? await api(`/posts/${postId}/rating`, { method: "PUT", body: { score: Number(star.dataset.rate) } })
+      : await api(`/posts/${postId}/rating`, { method: "DELETE" });
+    const post = { id: r.post_id, author_id: null, ...r };
+    document.getElementById("rating-box")?.replaceWith(
+      document.createRange().createContextualFragment(ratingPicker(post)));
+    document.querySelectorAll(`[data-rating-of="${r.post_id}"]`).forEach((el) =>
+      el.replaceWith(document.createRange().createContextualFragment(ratingSummary(post))));
+    toast(star ? `You rated it ${r.my_rating}/5` : "Rating removed");
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
 function postCard(p, comments) {
   const n = comments.get(p.id)?.length || 0;
   return `
@@ -218,6 +294,7 @@ function postCard(p, comments) {
     <div class="card-foot">
       <a class="author" href="#/user/${p.author_id}">@${esc(uname(p.author_id))}</a>
       <span class="spacer"></span>
+      ${ratingSummary(p)}
       <a class="meta" href="#/post/${p.id}">${ICON.comment}${n}</a>
       ${likeButton(p)}
     </div>
@@ -374,6 +451,7 @@ async function viewPost(id, alive) {
       <p class="muted">by <a class="author" href="#/user/${post.author_id}">@${esc(uname(post.author_id))}</a></p>
       <div class="chips">${post.genres.map((g) => `<span class="chip">${esc(g.name)}</span>`).join("")}</div>
       <div class="post-body">${esc(post.content)}</div>
+      ${ratingPicker(post)}
       <div class="card-foot">
         ${likeButton(post)}
         <span class="spacer"></span>
