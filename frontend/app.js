@@ -15,6 +15,7 @@ const state = {
   me: null,              // UserResponse of the logged-in user
   genres: [],            // full catalog, loaded once
   users: new Map(),      // id -> username cache (posts only carry author_id)
+  following: null,       // Set of the user ids I follow (null = not loaded yet)
 };
 
 // ------------------------------------------------------------------ helpers
@@ -132,6 +133,21 @@ async function loadGenres() {
   return state.genres;
 }
 
+// The API has no "do I follow X?" endpoint: read my whole following list once
+// (100 per page) and keep the ids. Follow/unfollow buttons update the set.
+async function loadMyFollowing() {
+  if (!state.me) return new Set();
+  if (state.following) return state.following;
+  const ids = new Set();
+  for (let offset = 0; ; offset += 100) {
+    const page = await api(`/users/${state.me.id}/following?limit=100&offset=${offset}`, { auth: false });
+    page.forEach((u) => { ids.add(u.id); state.users.set(u.id, u.username); });
+    if (page.length < 100) break;
+  }
+  state.following = ids;
+  return ids;
+}
+
 // There is no GET /posts/{id}/comments yet, so we read all comments once
 // and group them by post.
 async function commentsByPost() {
@@ -147,6 +163,7 @@ async function commentsByPost() {
 // ------------------------------------------------------------------ session
 
 async function loadMe() {
+  state.following = null;
   if (!state.token) { state.me = null; return; }
   try {
     state.me = await api("/users/me");
@@ -159,6 +176,7 @@ async function loadMe() {
 function logout(silent = false) {
   state.token = null;
   state.me = null;
+  state.following = null;
   storage.del("rate_token");
   renderNav();
   if (!silent) { toast("Logged out"); location.hash = "#/"; }
@@ -208,6 +226,15 @@ function postCard(p, comments) {
 
 function empty(html) { return `<div class="empty">${html}</div>`; }
 
+// "1 follower", "2 followers". The number lives in its own element so the
+// follow button can update it (and the word) without re-rendering the page.
+function followersLabel(userId, n) {
+  return `<strong data-followers-of="${userId}">${n}</strong> <span>${n === 1 ? "follower" : "followers"}</span>`;
+}
+function followingLabel(userId, n) {
+  return `<strong data-following-of="${userId}">${n}</strong> <span>following</span>`;
+}
+
 // One click handler for every like button on the page.
 document.addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-like]");
@@ -227,6 +254,46 @@ document.addEventListener("click", async (e) => {
   }
 });
 
+function followButton(userId) {
+  if (!state.me || state.me.id === userId) return "";
+  const on = state.following?.has(userId);
+  return `<button class="btn small follow ${on ? "ghost on" : ""}" data-follow="${userId}">${on ? "Following" : "Follow"}</button>`;
+}
+
+// One click handler for every follow button. PUT/DELETE are idempotent and
+// answer 204, so the button just flips and the counters on the page move by one.
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-follow]");
+  if (!btn) return;
+  if (!state.token) { toast("Log in to follow people"); location.hash = "#/login"; return; }
+  const id = Number(btn.dataset.follow);
+  const on = btn.classList.contains("on");
+  btn.disabled = true;
+  try {
+    await api(`/users/${id}/follow`, { method: on ? "DELETE" : "PUT" });
+    const following = await loadMyFollowing();
+    on ? following.delete(id) : following.add(id);
+    document.querySelectorAll(`[data-follow="${id}"]`).forEach((b) => {
+      b.classList.toggle("on", !on);
+      b.classList.toggle("ghost", !on);
+      b.textContent = on ? "Follow" : "Following";
+    });
+    document.querySelectorAll(`[data-followers-of="${id}"]`).forEach((el) => {
+      const n = Number(el.textContent) + (on ? -1 : 1);
+      el.textContent = n;
+      el.nextElementSibling.textContent = n === 1 ? "follower" : "followers";
+    });
+    document.querySelectorAll(`[data-following-of="${state.me.id}"]`).forEach((el) => {
+      el.textContent = Number(el.textContent) + (on ? -1 : 1);
+    });
+    toast(on ? `You unfollowed @${uname(id)}` : `You follow @${uname(id)}`);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ------------------------------------------------------------------ views
 
 const FEEDS = [
@@ -234,6 +301,7 @@ const FEEDS = [
   { key: "popular", label: "Popular", desc: "The most liked posts this week." },
   { key: "recommended", label: "For you", auth: true, desc: "Posts from your favourite genres." },
   { key: "discover", label: "Discover", auth: true, desc: "Genres you don't follow yet." },
+  { key: "following", label: "Following", auth: true, desc: "Posts from the people you follow." },
 ];
 
 async function viewFeed(key, alive) {
@@ -253,7 +321,9 @@ async function viewFeed(key, alive) {
   const more = document.getElementById("more");
 
   if (feed.auth && !state.me) {
-    list.innerHTML = empty(`This feed is based on your genres. <a href="#/login">Log in</a> to see it.`);
+    list.innerHTML = feed.key === "following"
+      ? empty(`Follow people to see their posts here. <a href="#/login">Log in</a> to see it.`)
+      : empty(`This feed is based on your genres. <a href="#/login">Log in</a> to see it.`);
     return;
   }
 
@@ -274,6 +344,8 @@ async function viewFeed(key, alive) {
     if (offset === 0) {
       list.innerHTML = feed.key === "recommended"
         ? empty(`Nothing for you yet. <a href="#/me">Pick your genres</a>.`)
+        : feed.key === "following"
+        ? empty(`No posts from people you follow yet.<br>Open someone's profile from <a href="#/feed/latest">Latest</a> and press <strong>Follow</strong>.`)
         : empty(`No posts yet. Have you run <code>make seed</code>?`);
     }
   }
@@ -447,20 +519,31 @@ async function viewLogin(mode) {
 function profileHead(user, extra = "") {
   return `<div class="profile-head">
     <div class="avatar" style="background:${avatarColor(user.username)}">${esc(user.username[0].toUpperCase())}</div>
-    <div><h1>@${esc(user.username)}</h1>${extra}</div></div>`;
+    <div class="profile-info"><h1>@${esc(user.username)}</h1>${extra}</div>
+    <span class="spacer"></span>${followButton(user.id)}</div>`;
+}
+
+// "12 followers · 3 following", each one a link to its list.
+// `profile` is a UserProfile (GET /users/{id}), which carries the counters.
+function followStats(profile) {
+  return `<p class="follow-stats">
+    <a href="#/user/${profile.id}/followers">${followersLabel(profile.id, profile.followers_count)}</a>
+    <a href="#/user/${profile.id}/following">${followingLabel(profile.id, profile.following_count)}</a>
+  </p>`;
 }
 
 async function viewMe(alive) {
   if (!state.me) { location.hash = "#/login"; return; }
   $app.innerHTML = `<div class="loading">Loading…</div>`;
-  const [, myGenres, myPosts, myComments, comments] = await Promise.all([
+  const [, myGenres, myPosts, myComments, comments, profile] = await Promise.all([
     loadGenres(), api("/users/me/genres"), api("/posts/me"), api("/comment/me"), commentsByPost(),
+    api(`/users/${state.me.id}`, { auth: false }),
   ]);
   if (!alive()) return;
   myPosts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   $app.innerHTML = `
-    ${profileHead(state.me, `<p class="muted" style="margin:4px 0 0">${esc(state.me.email)}</p>`)}
+    ${profileHead(state.me, `<p class="muted" style="margin:4px 0 0">${esc(state.me.email)}</p>${followStats(profile)}`)}
 
     <section class="section">
       <h2>Your genres</h2>
@@ -499,7 +582,7 @@ async function viewUser(id, alive) {
   $app.innerHTML = `<div class="loading">Loading…</div>`;
   // There is no "posts by user" endpoint yet: filter the full list.
   const [user, posts, comments] = await Promise.all([
-    api(`/users/${id}`, { auth: false }), api("/posts/"), commentsByPost(),
+    api(`/users/${id}`, { auth: false }), api("/posts/"), commentsByPost(), loadMyFollowing(),
   ]);
   if (!alive()) return;
   state.users.set(user.id, user.username);
@@ -507,11 +590,70 @@ async function viewUser(id, alive) {
   const theirComments = [...comments.values()].flat().filter((c) => c.author_id === user.id).length;
 
   $app.innerHTML = `
-    ${profileHead(user, `<p class="muted" style="margin:4px 0 0">${theirs.length} posts · ${theirComments} comments</p>`)}
+    ${profileHead(user, `<p class="muted" style="margin:4px 0 0">${theirs.length} posts · ${theirComments} comments</p>${followStats(user)}`)}
     <section class="section">
       <h2>Posts</h2>
       <div class="cards">${theirs.length ? theirs.map((p) => postCard(p, comments)).join("") : empty("This user hasn't posted anything yet.")}</div>
     </section>`;
+}
+
+// #/user/<id>/followers and #/user/<id>/following: the public lists
+// (UserPublic: id + username only), newest follow first, 20 per page.
+async function viewFollowList(id, which, alive) {
+  $app.innerHTML = `<div class="loading">Loading…</div>`;
+  const [user] = await Promise.all([api(`/users/${id}`, { auth: false }), loadMyFollowing()]);
+  if (!alive()) return;
+  state.users.set(user.id, user.username);
+  const isMe = state.me && state.me.id === user.id;
+  const back = isMe ? "#/me" : `#/user/${user.id}`;
+
+  $app.innerHTML = `
+    <a class="back" href="${back}">← @${esc(user.username)}</a>
+    <section class="hero">
+      <h1>${which === "followers" ? "Followers" : "Following"}</h1>
+      <p>${which === "followers"
+        ? `People who follow @${esc(user.username)}, most recent first.`
+        : `People @${esc(user.username)} follows, most recent first.`}</p>
+    </section>
+    <nav class="tabs">
+      <a href="#/user/${user.id}/followers" class="${which === "followers" ? "active" : ""}">${followersLabel(user.id, user.followers_count)}</a>
+      <a href="#/user/${user.id}/following" class="${which === "following" ? "active" : ""}">${followingLabel(user.id, user.following_count)}</a>
+    </nav>
+    <div id="list" class="panel people"><div class="loading">Loading…</div></div>
+    <div class="more"><button id="more" class="btn ghost" hidden>Load more</button></div>`;
+
+  const list = document.getElementById("list");
+  const more = document.getElementById("more");
+  const LIMIT = 20;
+  let offset = 0;
+
+  const row = (u) => `
+    <div class="person">
+      <div class="avatar small" style="background:${avatarColor(u.username)}">${esc(u.username[0].toUpperCase())}</div>
+      <a href="#/user/${u.id}">@${esc(u.username)}</a>
+      <span class="spacer"></span>
+      ${followButton(u.id)}
+    </div>`;
+
+  async function loadPage() {
+    more.disabled = true;
+    const people = await api(`/users/${user.id}/${which}?limit=${LIMIT}&offset=${offset}`, { auth: false });
+    if (!alive()) return;
+    people.forEach((u) => state.users.set(u.id, u.username));
+    if (offset === 0) list.innerHTML = "";
+    list.insertAdjacentHTML("beforeend", people.map(row).join(""));
+    offset += people.length;
+    more.hidden = people.length < LIMIT;
+    more.disabled = false;
+    if (offset === 0) {
+      list.innerHTML = `<p class="muted">${which === "followers"
+        ? (isMe ? "Nobody follows you yet." : "Nobody follows this user yet.")
+        : (isMe ? "You don't follow anyone yet." : "This user doesn't follow anyone yet.")}</p>`;
+    }
+  }
+
+  more.addEventListener("click", () => loadPage().catch((e) => toast(e.message, true)));
+  await loadPage();
 }
 
 // ------------------------------------------------------------------ router
@@ -535,7 +677,10 @@ async function render() {
       case "login": await viewLogin("login"); break;
       case "signup": await viewLogin("signup"); break;
       case "me": await viewMe(alive); break;
-      case "user": await viewUser(parts[1], alive); break;
+      case "user":
+        if (parts[2] === "followers" || parts[2] === "following") await viewFollowList(parts[1], parts[2], alive);
+        else await viewUser(parts[1], alive);
+        break;
       default: $app.innerHTML = empty(`Page not found. <a href="#/">Go home</a>`);
     }
   } catch (err) {
