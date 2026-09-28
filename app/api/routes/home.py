@@ -6,24 +6,10 @@ from app.database.models.user import User
 from app.database.schema.post import PostResponse
 from app.services import feed
 from app.services.auth import get_current_user, get_optional_user
+from app.services.pagination import Page
 from app.services.viewer import mark_viewer_state
 
 router = APIRouter(prefix="/home", tags=["home"])
-
-
-class Page:
-    """Pagination parameters shared by every feed. As a dependency
-    (`page: Page = Depends()`), FastAPI reads them from the query string
-    (?limit=20&offset=40) and validates them: limit=0 or limit=500 is a 422
-    before our code runs."""
-
-    def __init__(
-        self,
-        limit: int = Query(20, ge=1, le=100),
-        offset: int = Query(0, ge=0),
-    ):
-        self.limit = limit
-        self.offset = offset
 
 
 @router.get("/latest", response_model=list[PostResponse])
@@ -65,4 +51,14 @@ def home_discover(
     user: User = Depends(get_current_user),
 ):
     posts = feed.discover(db, user, page.limit, page.offset)
+    return mark_viewer_state(db, posts, user)
+
+
+@router.get("/following", response_model=list[PostResponse])
+def home_following(
+    page: Page = Depends(),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    posts = feed.following(db, user, page.limit, page.offset)
     return mark_viewer_state(db, posts, user)

@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Query, Session, selectinload
 
+from app.database.models.follow import Follow
 from app.database.models.genre import post_genres, user_genres
 from app.database.models.like import Like
 from app.database.models.post import Post
@@ -116,5 +117,21 @@ def discover(db: Session, user: User, limit: int, offset: int) -> list[Post]:
         _posts(db)
         .filter(Post.author_id != user.id, _new_genres(user) > 0)
         .order_by(is_bridge.desc(), Post.created_at.desc(), Post.id.desc())
+    )
+    return _page(query, limit, offset)
+
+
+def following(db: Session, user: User, limit: int, offset: int) -> list[Post]:
+    """Posts by the users you follow, newest first. Someone who follows
+    nobody gets [] (no fallback: an empty feed tells them to follow people).
+
+    One query for the posts: JOIN follows ON the author and keep the rows
+    where I am the follower. The (follower_id, following_id) primary key
+    finds who I follow, and the index on posts.author_id finds their posts."""
+    query = (
+        _posts(db)
+        .join(Follow, Follow.following_id == Post.author_id)
+        .filter(Follow.follower_id == user.id)
+        .order_by(Post.created_at.desc(), Post.id.desc())
     )
     return _page(query, limit, offset)
