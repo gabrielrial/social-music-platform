@@ -11,7 +11,7 @@ test/
 ├── conftest.py              # Shared fixtures + database override
 ├── conf/
 │   ├── conf_database.py     # Engine, sessions and create/drop of the test database
-│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments) + seed_social() (genres, likes)
+│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments) + seed_social() (genres, likes) + seed_follows()
 └── tests/
     ├── test_basic.py        # Smoke tests
     ├── test_users.py        # Signup, login, /me, listing
@@ -20,8 +20,10 @@ test/
     ├── test_genres.py       # Genre catalog
     ├── test_user_genres.py  # GET/PUT /users/me/genres
     ├── test_likes.py        # Like/unlike, like_count, liked_by_me
-    ├── test_seed.py         # seed_social() itself
-    └── test_home.py         # The four /home feeds and pagination
+    ├── test_ratings.py      # PUT/DELETE /posts/{id}/rating, rating_avg, my_rating
+    ├── test_follow.py       # Follow/unfollow, followers/following lists, counters, /home/following
+    ├── test_seed.py         # seed_social() and seed_follows() themselves
+    └── test_home.py         # The /home feeds based on genres and likes, and pagination
 ```
 
 `conftest.py` must live in `test/`, not inside `conf/`: pytest loads it automatically by name, and its fixtures only reach the tests in its own folder and subfolders.
@@ -102,7 +104,28 @@ The genre catalog is **not** part of the seed: `setup_test_db()` loads it before
 
 It is a separate function on purpose: most tests want the plain seed so their expected numbers stay simple. `test_home.py` uses it through a `social` fixture, and `make seed` uses it for the development database.
 
-`test_home.py` computes the expected feed **in plain Python** from `SeedData` and compares it with the API response: if the SQL and the Python disagree, one of them is wrong.
+### `seed_follows()`: who follows whom
+
+`seed_follows(db, seed)` makes every user follow each other user with a 30% chance, **except the first user (`john0`), who follows nobody** (to show the empty "Following" feed). It fills `SeedData.follows` and adds the helper `following_of(user_id)`. Each follow gets its own `created_at`, so the lists have a predictable order.
+
+It is separate from `seed_social()` because both use a fixed random generator: generating follows there would consume its random numbers and change the likes that `test_home.py` expects.
+
+`test_home.py` computes the expected feed **in plain Python** from `SeedData` and compares it with the API response: if the SQL and the Python disagree, one of them is wrong. `test_follow.py` does the same for `/home/following`.
+
+---
+
+## 👥 `test_follow.py` (exercise 4)
+
+| Group | What it checks |
+|---|---|
+| `PUT /follow` | 204 with an empty body; twice → still one row; yourself → 400 and no row; unknown user → 404; no token → 401; following is one-directional |
+| `DELETE /follow` | 204; not following / twice → 204; only removes my follow; unknown user → 404; no token → 401 |
+| `/followers`, `/following` | Most recent follow first (the example from the exercise, and re-following moves you to the top); only `id` and `username`, never the email; public; empty lists; unknown user → 404; pagination pages join up; invalid `limit`/`offset` → 422 |
+| `GET /users/{id}` | `followers_count` / `following_count` start at 0, add up, go down after unfollowing; the user and both counters come in **one** SQL query; `GET /users/` does not load the counters |
+| `/home/following` | 401 without a token; `[]` when following nobody or when they have not posted; only followed authors, newest first; `like_count` / `liked_by_me` like the other feeds; unfollowing removes their posts; pagination; the expected feed of **every** seeded user with `seed_follows()`; a constant number of queries |
+| Database | The `CHECK` rejects a self-follow and the primary key a duplicate (`IntegrityError`); deleting a user deletes their follows in both directions, through the ORM and with a plain SQL `DELETE` |
+
+The query-count tests use a small `QueryCounter` context manager that listens to SQLAlchemy's `before_cursor_execute` event on the test engine.
 
 ---
 

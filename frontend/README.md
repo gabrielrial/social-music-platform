@@ -22,12 +22,13 @@ frontend/
 | Route            | View                                                        | Login |
 |------------------|-------------------------------------------------------------|-------|
 | `#/`             | Home, "Latest" feed                                         | No    |
-| `#/feed/<name>`  | Home feed: `latest`, `popular`, `recommended`, `discover`   | `recommended` and `discover` only |
+| `#/feed/<name>`  | Home feed: `latest`, `popular`, `recommended`, `discover`, `following` | `recommended`, `discover` and `following` only |
 | `#/post/<id>`    | Post detail, likes and comments (edit/delete if it is yours) | To like or comment |
 | `#/new`          | Create a post (type, title, text, genres)                   | Yes   |
 | `#/edit/<id>`    | Edit one of your posts                                      | Yes   |
-| `#/me`           | Your profile: favourite genres, your posts, your comments   | Yes   |
-| `#/user/<id>`    | Someone else's profile and posts                            | No    |
+| `#/me`           | Your profile: follower counts, favourite genres, your posts, your comments | Yes   |
+| `#/user/<id>`    | Someone else's profile: follower counts, **Follow** button, posts | To follow |
+| `#/user/<id>/followers`, `#/user/<id>/following` | Who follows them / who they follow, most recent first, with a Follow button per row | To follow |
 | `#/login`, `#/signup` | Log in / create an account                             | No    |
 
 The JWT from `POST /users/login` is kept in `localStorage` (`rate_token`) and sent as `Authorization: Bearer <token>`.
@@ -71,8 +72,15 @@ The API does not have everything the UI needs yet, so the frontend fills the gap
 | Comments of one post, comment counts on cards | `GET /posts/{id}/comments` | Downloads `GET /comment/` and groups it by `post_id` |
 | Posts of another user | `GET /users/{id}/posts` | Downloads `GET /posts/` and filters by `author_id` |
 | Author names on posts and comments | Author name in `PostResponse` / `CommentResponse` | Calls `GET /users/{id}` once per author and caches it |
+| Whether I already follow someone (Follow / Following button) | A `followed_by_me` field, or `GET /users/me/following/{id}` | `loadMyFollowing()` reads `GET /users/{my id}/following` once (100 per page) and keeps the ids in `state.following`; the follow buttons update that set |
 
-When those endpoints exist, replace `commentsByPost()`, the filter in `viewUser()` and `loadUsers()` in `app.js`.
+When those endpoints exist, replace `commentsByPost()`, the filter in `viewUser()`, `loadUsers()` and `loadMyFollowing()` in `app.js`.
+
+### Follows
+
+- One click handler serves every `[data-follow]` button (profile head and list rows), like the like buttons. It sends `PUT` or `DELETE /users/{id}/follow` (both answer 204), flips every button for that user on the page and moves the counters (`[data-followers-of]`, `[data-following-of]`) by one, so nothing has to be re-rendered.
+- The counters come from `GET /users/{id}`, the only endpoint that returns `followers_count` and `following_count`. `#/me` calls it too, because `/users/me` does not include them.
+- The "Following" feed shows `[]` as an empty state with a hint to follow people: the API has no fallback on purpose.
 
 ---
 
