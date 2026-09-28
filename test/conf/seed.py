@@ -6,8 +6,9 @@ seed_database() fills the test database with:
   - 20 posts (random author, random album or song)
   - 3 comments per post (60 in total, random author)
 
-seed_social() adds genres (to posts and users) and likes on top of that.
-scripts/seed_dev.py uses both to fill the development database (`make seed`).
+seed_social() adds genres (to posts and users) and likes on top of that, and
+seed_follows() adds who follows whom. scripts/seed_dev.py uses all three to
+fill the development database (`make seed`).
 
 It uses random.Random(42): the data looks random but is ALWAYS the same on
 every run, so a failing test fails the same way next time and can be
@@ -21,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.database.models.comment import Comment
+from app.database.models.follow import Follow
 from app.database.models.genre import Genre
 from app.database.models.like import Like
 from app.database.models.post import Post, PostType
@@ -107,6 +109,8 @@ class SeedData:
     user_genres: dict[int, list[str]] = field(default_factory=dict)  # user_id -> genre names
     post_genres: dict[int, list[str]] = field(default_factory=dict)  # post_id -> genre names
     likes: list[dict] = field(default_factory=list)                  # {user_id, post_id}
+    # Filled only by seed_follows():
+    follows: list[dict] = field(default_factory=list)                # {follower_id, following_id}
 
     def posts_by(self, user_id: int) -> list[dict]:
         return [p for p in self.posts if p["author_id"] == user_id]
@@ -119,6 +123,10 @@ class SeedData:
 
     def likes_on(self, post_id: int) -> list[dict]:
         return [l for l in self.likes if l["post_id"] == post_id]
+
+    def following_of(self, user_id: int) -> list[int]:
+        """Ids of the users `user_id` follows."""
+        return [f["following_id"] for f in self.follows if f["follower_id"] == user_id]
 
 
 def seed_database(db: Session, rng_seed: int = 42) -> SeedData:
@@ -230,4 +238,38 @@ def seed_social(db: Session, data: SeedData, rng_seed: int = 7) -> SeedData:
     db.commit()
 
     data.likes = [{"user_id": l.user_id, "post_id": l.post_id} for l in likes]
+    return data
+
+
+FOLLOW_PROBABILITY = 0.3
+
+
+def seed_follows(db: Session, data: SeedData, rng_seed: int = 11) -> SeedData:
+    """Every user follows each other user with a 30% chance, EXCEPT the first
+    user, who follows nobody (to show the empty "Following" feed).
+
+    Separate from seed_social() on purpose: adding rows there would consume
+    its random numbers and change the likes the home tests expect.
+    Each follow gets its own created_at, so the followers/following lists
+    have a predictable order.
+    """
+    rng = random.Random(rng_seed)
+    user_ids = [u["id"] for u in data.users]
+    follows = []
+    for follower_id in user_ids[1:]:
+        for following_id in user_ids:
+            if following_id != follower_id and rng.random() < FOLLOW_PROBABILITY:
+                follows.append(
+                    Follow(
+                        follower_id=follower_id,
+                        following_id=following_id,
+                        created_at=_BASE_TIME + timedelta(days=1, minutes=len(follows)),
+                    )
+                )
+    db.add_all(follows)
+    db.commit()
+
+    data.follows = [
+        {"follower_id": f.follower_id, "following_id": f.following_id} for f in follows
+    ]
     return data

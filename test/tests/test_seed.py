@@ -32,3 +32,16 @@ def test_seed_social_shows_up_in_the_api(client, seed, db, login):
     user = seed.users[0]
     genres = client.get("/users/me/genres", headers=login(user["username"])).json()
     assert [g["name"] for g in genres] == data.user_genres[user["id"]]
+
+
+def test_seed_follows(seed, db):
+    from app.database.models.follow import Follow
+    from test.conf.seed import seed_follows
+
+    data = seed_follows(db, seed)
+
+    # Some follows, never yourself, and the first user follows nobody
+    assert data.follows
+    assert all(f["follower_id"] != f["following_id"] for f in data.follows)
+    assert data.following_of(seed.users[0]["id"]) == []
+    assert db.query(Follow).count() == len(data.follows)

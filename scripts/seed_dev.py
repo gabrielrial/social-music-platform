@@ -1,6 +1,6 @@
 """
 Fill the DEVELOPMENT database (DATABASE_URL, forumdb on port 5432) with the
-same sample data the tests use, plus genres and likes, so the API has
+same sample data the tests use, plus genres, likes and follows, so the API has
 something to show in /docs without creating everything by hand.
 
     make seed         # only if the database has no users yet
@@ -12,10 +12,10 @@ Every user has the password `password123`.
 import sys
 
 from app.database.conf.alch_conf import Base, SessionLocal, engine
-from app.database.models import comment, genre, like, post, user  # noqa: F401 (registers the tables)
+from app.database.models import comment, follow, genre, like, post, rating, user  # noqa: F401 (registers the tables)
 from app.database.models.user import User
 from app.services.genres import seed_genres
-from test.conf.seed import SEED_PASSWORD, seed_database, seed_social
+from test.conf.seed import SEED_PASSWORD, seed_database, seed_follows, seed_social
 
 
 def main(reset: bool) -> None:
@@ -34,14 +34,17 @@ def main(reset: bool) -> None:
 
         data = seed_database(db)
         seed_social(db, data)
+        seed_follows(db, data)
 
     print(f"Seeded {engine.url.render_as_string(hide_password=True)}")
     print(f"  {len(data.users)} users, {len(data.posts)} posts, "
-          f"{len(data.comments)} comments, {len(data.likes)} likes")
+          f"{len(data.comments)} comments, {len(data.likes)} likes, "
+          f"{len(data.follows)} follows")
     print(f"  Log in as any of them with password '{SEED_PASSWORD}':")
     for u in data.users:
         genres = ", ".join(data.user_genres[u["id"]]) or "(no genres)"
-        print(f"    {u['username']:<10} likes {genres}")
+        n = len(data.following_of(u["id"]))
+        print(f"    {u['username']:<10} follows {n}, likes {genres}")
 
 
 if __name__ == "__main__":
