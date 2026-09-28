@@ -149,6 +149,33 @@ h2 { font-size: 20px; margin-bottom: 12px; }
 .like.on svg { fill: currentColor; }
 .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
 
+/* ---------- ratings */
+.rating { color: var(--accent-2); }
+.rating strong { color: var(--text); font-weight: 600; }
+.rating span { color: var(--muted); }
+.rating svg { fill: currentColor; stroke: none; }
+.rating.none { color: var(--muted); }
+.rating.none svg { fill: none; stroke: currentColor; }
+
+.rating-box {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px; margin: 4px 0 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+}
+.rating-big { font: 700 34px var(--display); min-width: 56px; text-align: center; color: var(--accent-2); }
+.stars { display: flex; gap: 2px; }
+.star {
+  background: none; border: 0; padding: 2px; cursor: pointer; color: #4a4658;
+  transition: transform .1s, color .1s;
+}
+.star .icon { width: 26px; height: 26px; fill: currentColor; stroke: none; }
+.star.on { color: var(--accent-2); }
+.star:not(:disabled):hover { transform: scale(1.15); }
+.star:disabled { cursor: default; }
+.rating-hint { margin-top: 4px; }
+.rating-hint a { color: var(--accent); }
+.linkish.inline { padding: 0; font-size: inherit; text-decoration: underline; }
+
 /* ---------- genre picker */
 .genre-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .genre-picker input { display: none; }

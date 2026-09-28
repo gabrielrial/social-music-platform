@@ -23,7 +23,7 @@ frontend/
 |------------------|-------------------------------------------------------------|-------|
 | `#/`             | Home, "Latest" feed                                         | No    |
 | `#/feed/<name>`  | Home feed: `latest`, `popular`, `recommended`, `discover`, `following` | `recommended`, `discover` and `following` only |
-| `#/post/<id>`    | Post detail, likes and comments (edit/delete if it is yours) | To like or comment |
+| `#/post/<id>`    | Post detail: rating (1–5 stars), likes and comments (edit/delete if it is yours) | To rate, like or comment |
 | `#/new`          | Create a post (type, title, text, genres)                   | Yes   |
 | `#/edit/<id>`    | Edit one of your posts                                      | Yes   |
 | `#/me`           | Your profile: follower counts, favourite genres, your posts, your comments | Yes   |
@@ -75,6 +75,12 @@ The API does not have everything the UI needs yet, so the frontend fills the gap
 | Whether I already follow someone (Follow / Following button) | A `followed_by_me` field, or `GET /users/me/following/{id}` | `loadMyFollowing()` reads `GET /users/{my id}/following` once (100 per page) and keeps the ids in `state.following`; the follow buttons update that set |
 
 When those endpoints exist, replace `commentsByPost()`, the filter in `viewUser()`, `loadUsers()` and `loadMyFollowing()` in `app.js`.
+
+### Ratings
+
+- **Cards** show the average and the number of votes (`★ 4.3 (7)`), or "No ratings" when `rating_avg` is `null`.
+- **The post page** has a 1–5 star picker. Clicking a star sends `PUT /posts/{id}/rating` with `{"score": n}`; "Remove" sends `DELETE`. Both answer a `RatingStatus` (`rating_avg`, `rating_count`, `my_rating`), so the picker and every `[data-rating-of]` summary are redrawn without reloading the post. Hovering previews the score.
+- Your current rating (`my_rating`) is shown lit. On **your own posts** the stars are disabled (the API would answer 403), and anonymous visitors get a "Log in to rate" hint.
 
 ### Follows
 
