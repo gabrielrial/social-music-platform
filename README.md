@@ -71,7 +71,7 @@ make run       # start the dev database and the API
 | `make run`     | Start the dev database (`db`) and the API with `--reload` |
 | `make front`   | Serve the demo frontend on http://localhost:8080 (needs `make run` in another terminal) |
 | `make share`   | Expose the API and the frontend on a public URL with ngrok (needs `make run`; `NGROK_URL=<domain>` for a fixed URL) |
-| `make seed`    | Fill the dev database with sample users, posts, comments, genres, likes and follows (only if it has no users) |
+| `make seed`    | Fill the dev database with sample users, posts, comments, genres, likes, follows and ratings (only if it has no users) |
 | `make seed-reset` | Wipe the dev database tables and seed them again (asks for confirmation) |
 | `make test`    | Start the test database (`db_test`) and run `pytest -v`   |
 | `make down`    | Stop the containers (development data is kept)            |
@@ -120,7 +120,7 @@ uvicorn app.main:app --reload
 
 Tables are created when the server starts (`create_all` inside FastAPI's `lifespan`), so there are no migrations to run. The genre catalog is loaded at the same time.
 
-To have something to look at in `/docs`, run `make seed`: 10 users (`john0`, `janis1`… `jimi9`), all with password `password123`, 20 posts, 60 comments, genres, likes and follows. `jimi9` has no favourite genres on purpose, to show the fallback of `/home/recommended`, and `john0` follows nobody, to show the empty `/home/following`.
+To have something to look at in `/docs`, run `make seed`: 10 users (`john0`, `janis1`… `jimi9`), all with password `password123`, 20 posts, 60 comments, genres, likes, follows and ratings. `jimi9` has no favourite genres on purpose, to show the fallback of `/home/recommended`, and `john0` follows nobody, to show the empty `/home/following`.
 
 > ⚠️ `python app/main.py` **does not work**: Python cannot find the `app` package that way. Use `uvicorn app.main:app` or `python -m app.main` from the project root.
 

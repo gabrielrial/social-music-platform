@@ -6,9 +6,10 @@ seed_database() fills the test database with:
   - 20 posts (random author, random album or song)
   - 3 comments per post (60 in total, random author)
 
-seed_social() adds genres (to posts and users) and likes on top of that, and
-seed_follows() adds who follows whom. scripts/seed_dev.py uses all three to
-fill the development database (`make seed`).
+seed_social() adds genres (to posts and users) and likes on top of that,
+seed_follows() adds who follows whom and seed_ratings() adds 1-5 star
+ratings. scripts/seed_dev.py uses all of them to fill the development
+database (`make seed`).
 
 It uses random.Random(42): the data looks random but is ALWAYS the same on
 every run, so a failing test fails the same way next time and can be
@@ -26,6 +27,7 @@ from app.database.models.follow import Follow
 from app.database.models.genre import Genre
 from app.database.models.like import Like
 from app.database.models.post import Post, PostType
+from app.database.models.rating import Rating
 from app.database.models.user import User
 from app.utils.security import hash_password
 
@@ -111,6 +113,8 @@ class SeedData:
     likes: list[dict] = field(default_factory=list)                  # {user_id, post_id}
     # Filled only by seed_follows():
     follows: list[dict] = field(default_factory=list)                # {follower_id, following_id}
+    # Filled only by seed_ratings():
+    ratings: list[dict] = field(default_factory=list)                # {user_id, post_id, score}
 
     def posts_by(self, user_id: int) -> list[dict]:
         return [p for p in self.posts if p["author_id"] == user_id]
@@ -123,6 +127,9 @@ class SeedData:
 
     def likes_on(self, post_id: int) -> list[dict]:
         return [l for l in self.likes if l["post_id"] == post_id]
+
+    def ratings_on(self, post_id: int) -> list[dict]:
+        return [r for r in self.ratings if r["post_id"] == post_id]
 
     def following_of(self, user_id: int) -> list[int]:
         """Ids of the users `user_id` follows."""
@@ -271,5 +278,36 @@ def seed_follows(db: Session, data: SeedData, rng_seed: int = 11) -> SeedData:
 
     data.follows = [
         {"follower_id": f.follower_id, "following_id": f.following_id} for f in follows
+    ]
+    return data
+
+
+RATING_PROBABILITY = 0.4
+
+# Mostly good scores, like real reviews: 4 and 5 are the most common.
+_SCORES = [1, 2, 3, 3, 4, 4, 4, 5, 5, 5]
+
+
+def seed_ratings(db: Session, data: SeedData, rng_seed: int = 13) -> SeedData:
+    """Every user rates each post of someone else with a 40% chance (never
+    their own post: the API answers 403 to that). Some posts end up with no
+    ratings at all, so `rating_avg` is null for them.
+
+    Separate from seed_social() and seed_follows() for the same reason: its
+    own random generator, so adding ratings does not change their data.
+    """
+    rng = random.Random(rng_seed)
+    ratings = []
+    for user in data.users:
+        for post in data.posts:
+            if post["author_id"] != user["id"] and rng.random() < RATING_PROBABILITY:
+                ratings.append(
+                    Rating(user_id=user["id"], post_id=post["id"], score=rng.choice(_SCORES))
+                )
+    db.add_all(ratings)
+    db.commit()
+
+    data.ratings = [
+        {"user_id": r.user_id, "post_id": r.post_id, "score": r.score} for r in ratings
     ]
     return data

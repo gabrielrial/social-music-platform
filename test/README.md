@@ -11,7 +11,7 @@ test/
 ├── conftest.py              # Shared fixtures + database override
 ├── conf/
 │   ├── conf_database.py     # Engine, sessions and create/drop of the test database
-│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments) + seed_social() (genres, likes) + seed_follows()
+│   └── seed.py              # Seed data (10 users, 20 posts, 60 comments) + seed_social() (genres, likes) + seed_follows() + seed_ratings()
 └── tests/
     ├── test_basic.py        # Smoke tests
     ├── test_users.py        # Signup, login, /me, listing
@@ -22,7 +22,7 @@ test/
     ├── test_likes.py        # Like/unlike, like_count, liked_by_me
     ├── test_ratings.py      # PUT/DELETE /posts/{id}/rating, rating_avg, my_rating
     ├── test_follow.py       # Follow/unfollow, followers/following lists, counters, /home/following
-    ├── test_seed.py         # seed_social() and seed_follows() themselves
+    ├── test_seed.py         # seed_social(), seed_follows() and seed_ratings() themselves
     └── test_home.py         # The /home feeds based on genres and likes, and pagination
 ```
 
@@ -109,6 +109,10 @@ It is a separate function on purpose: most tests want the plain seed so their ex
 `seed_follows(db, seed)` makes every user follow each other user with a 30% chance, **except the first user (`john0`), who follows nobody** (to show the empty "Following" feed). It fills `SeedData.follows` and adds the helper `following_of(user_id)`. Each follow gets its own `created_at`, so the lists have a predictable order.
 
 It is separate from `seed_social()` because both use a fixed random generator: generating follows there would consume its random numbers and change the likes that `test_home.py` expects.
+
+### `seed_ratings()`: 1–5 star ratings
+
+`seed_ratings(db, seed)` makes every user rate each post of someone else with a 40% chance (never their own post), with mostly good scores (4 and 5 are the most common). Some posts get no ratings, so their `rating_avg` is `null`. It fills `SeedData.ratings` and adds the helper `ratings_on(post_id)`. Same reason as above for being its own function with its own random generator.
 
 `test_home.py` computes the expected feed **in plain Python** from `SeedData` and compares it with the API response: if the SQL and the Python disagree, one of them is wrong. `test_follow.py` does the same for `/home/following`.
 

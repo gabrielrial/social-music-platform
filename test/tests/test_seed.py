@@ -45,3 +45,37 @@ def test_seed_follows(seed, db):
     assert all(f["follower_id"] != f["following_id"] for f in data.follows)
     assert data.following_of(seed.users[0]["id"]) == []
     assert db.query(Follow).count() == len(data.follows)
+
+
+def test_seed_ratings(seed, db):
+    from app.database.models.rating import Rating
+    from test.conf.seed import seed_ratings
+
+    data = seed_ratings(db, seed)
+
+    # Some ratings, all between 1 and 5, never on your own post
+    authors = {p["id"]: p["author_id"] for p in seed.posts}
+    assert data.ratings
+    assert all(1 <= r["score"] <= 5 for r in data.ratings)
+    assert all(authors[r["post_id"]] != r["user_id"] for r in data.ratings)
+    assert db.query(Rating).count() == len(data.ratings)
+
+
+def test_seed_ratings_show_up_in_the_api(client, seed, db):
+    from decimal import ROUND_HALF_UP, Decimal
+
+    from test.conf.seed import seed_ratings
+
+    data = seed_ratings(db, seed)
+    for post in seed.posts:
+        scores = [r["score"] for r in data.ratings_on(post["id"])]
+        response = client.get(f"/posts/{post['id']}").json()
+        assert response["rating_count"] == len(scores)
+        # Postgres rounds halves away from zero (3.25 -> 3.3); Python's
+        # round() would give 3.2, so compute it the same way Postgres does.
+        expected = (
+            float((Decimal(sum(scores)) / len(scores)).quantize(Decimal("0.1"), ROUND_HALF_UP))
+            if scores else None
+        )
+        assert response["rating_avg"] == expected
+
