@@ -21,7 +21,8 @@ class Post(Base):
     title = Column(String, nullable=False)
 
     author = relationship("User", back_populates="posts")
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # index: the /home/following feed looks posts up by author
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     post_type = Column(SQLEnum(PostType), nullable=False)
 
